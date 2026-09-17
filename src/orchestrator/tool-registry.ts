@@ -15,7 +15,7 @@ const MAX_READ_FILE_BYTES = 30 * 1024; // 30 KB
  */
 const PROTECTED_ENV_KEYS = [
   'DRY_RUN',
-  'SOLANA_PRIVATE_KEY', 'EVM_PRIVATE_KEY', 'HYPERLIQUID_PRIVATE_KEY', 'POLYMARKET_PRIVATE_KEY',
+  'SOLANA_PRIVATE_KEY', 'EVM_PRIVATE_KEY',
   'SOLANA_RPC_URL', 'SOLANA_WSS_URL', 'EVM_RPC_URL', 'EVM_BASE_RPC_URL', 'EVM_ETH_RPC_URL',
   'EVM_ROBINHOOD_RPC_URL', 'EVM_ARB_RPC_URL', 'EVM_OP_RPC_URL', 'EVM_POLYGON_RPC_URL', 'EVM_BSC_RPC_URL',
   'AI_BASE_URL', 'AI_PROVIDER',
@@ -24,7 +24,7 @@ const PROTECTED_ENV_KEYS = [
 /** Keys settable via set_api_key (API credentials only — never mode/private/infra). */
 const SETTABLE_ENV_KEYS = [
   'AI_API_KEY', 'AI_API_KEYS', 'OPENROUTER_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY',
-  'GMGN_API_KEY', 'OPENSEA_API_KEY', 'TWEX_API_KEY', 'TWITTER_BEARER_TOKEN', 'GOPLUS_API_KEY',
+  'GMGN_API_KEY', 'TWEX_API_KEY', 'TWITTER_BEARER_TOKEN', 'GOPLUS_API_KEY',
   'UNISWAP_API_KEY', 'JUPITER_API_KEY', 'RUGCHECK_API_URL',
 ];
 
@@ -64,13 +64,13 @@ export class ToolRegistry {
     return [
       {
         name: 'pause_sub_agent',
-        description: 'Pause a specific background screening sub-agent (e.g. solana-meme, evm-meme, perps, nft, prediction, ct-alpha, lp-solana, lp-robinhood).',
+        description: 'Pause a specific background screening sub-agent (e.g. meme-solana, meme-robinhood, meme-base, meme-eth, meme-bsc, ct-alpha).',
         parameters: {
           type: 'object',
           properties: {
             agentId: {
               type: 'string',
-              description: 'The ID of the sub-agent to pause (e.g. solana-meme, evm-meme, perps, nft, prediction, ct-alpha, lp-solana, lp-robinhood, or all).',
+              description: 'The ID of the sub-agent to pause (e.g. meme-solana, meme-robinhood, meme-base, meme-eth, meme-bsc, ct-alpha, or all).',
             },
           },
           required: ['agentId'],
@@ -84,7 +84,7 @@ export class ToolRegistry {
           properties: {
             agentId: {
               type: 'string',
-              description: 'The ID of the sub-agent to resume (e.g. solana-meme, evm-meme, perps, nft, prediction, ct-alpha, lp-solana, lp-robinhood, or all).',
+              description: 'The ID of the sub-agent to resume (e.g. meme-solana, meme-robinhood, meme-base, meme-eth, meme-bsc, ct-alpha, or all).',
             },
           },
           required: ['agentId'],
@@ -98,7 +98,7 @@ export class ToolRegistry {
           properties: {
             agentId: {
               type: 'string',
-              description: 'The sub-agent to trigger immediately (e.g. solana-meme, evm-meme, perps, nft, prediction, ct-alpha, lp-solana, lp-robinhood, or all).',
+              description: 'The sub-agent to trigger immediately (e.g. meme-solana, meme-robinhood, meme-base, meme-eth, meme-bsc, ct-alpha, or all).',
             },
           },
           required: ['agentId'],
@@ -162,7 +162,7 @@ export class ToolRegistry {
             },
             agentId: {
               type: 'string',
-              description: 'Target sub-agent ID (e.g. solana-meme, evm-meme, perps, nft).',
+              description: 'Target sub-agent ID (e.g. meme-solana, meme-robinhood, ct-alpha).',
             },
           },
           required: ['interval'],
@@ -184,13 +184,13 @@ export class ToolRegistry {
       },
       {
         name: 'set_api_key',
-        description: 'Set and persist an API key or environment variable at runtime (e.g. GMGN_API_KEY, OPENSEA_API_KEY, TWEX_API_KEY).',
+        description: 'Set and persist an API key or environment variable at runtime (e.g. GMGN_API_KEY, TWEX_API_KEY, AI_API_KEY).',
         parameters: {
           type: 'object',
           properties: {
             keyName: {
               type: 'string',
-              description: 'API key environment variable name (e.g. GMGN_API_KEY, OPENSEA_API_KEY, TWEX_API_KEY, POLYMARKET_API_KEY).',
+              description: 'API key environment variable name (e.g. GMGN_API_KEY, TWEX_API_KEY, AI_API_KEY).',
             },
             keyValue: {
               type: 'string',
@@ -273,7 +273,7 @@ export class ToolRegistry {
           type: 'object',
           properties: {
             strategyId: { type: 'string', description: 'Strategy id.' },
-            domain: { type: 'string', description: 'Screening domain (e.g. meme-solana, perps).' },
+            domain: { type: 'string', description: 'Screening domain (e.g. meme-solana, meme-robinhood).' },
           },
           required: ['strategyId', 'domain'],
         },
@@ -523,7 +523,7 @@ export class ToolRegistry {
           const dryRun = process.env.DRY_RUN !== 'false';
           const autoExecuteEnabled = process.env.AUTO_EXECUTE_ENABLED === 'true';
           const active = this.orchestrator.getActiveDomains();
-          const keyNames = ['GMGN_API_KEY', 'OPENSEA_API_KEY', 'TWEX_API_KEY', 'GOPLUS_API_KEY', 'AI_API_KEY', 'POLYGON_RPC_URL', 'SOLANA_RPC_URL', 'BASE_RPC_URL'];
+          const keyNames = ['GMGN_API_KEY', 'TWEX_API_KEY', 'GOPLUS_API_KEY', 'AI_API_KEY'];
           const keys = keyNames.map((k) => {
             const v = process.env[k];
             const set = Boolean(v && !v.includes('YOUR_') && !v.includes('placeholder') && !v.includes('mock'));

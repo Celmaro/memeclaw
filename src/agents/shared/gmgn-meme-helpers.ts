@@ -6,6 +6,9 @@
  * ONE place. No scoring logic changes — this is pure de-duplication.
  */
 import type { GMGNRawToken, GMGNSecurityAudit, GMGNTrackTrade } from '../../adapters/gmgn-adapter.js';
+import type { LaunchIntelligenceInput } from '../../domain/launch-intelligence.js';
+import type { ExitSafetyInput } from '../../domain/exit-safety.js';
+import type { TokenGatebookInput } from '../../domain/token-gatebook.js';
 
 export interface MemePreFilterConfig {
   /** Real 1-HOUR volume (GMGN rank/hot interval=1h, trenches volume_1h, DexScreener h1) — required. */
@@ -50,6 +53,82 @@ export function isGraduatedToken(t: GMGNRawToken): boolean {
   if (!ex) return false;
   if (ex.startsWith('0x')) return true;
   return ex !== 'pump';
+}
+
+/** Build deterministic launch-intelligence evidence from a GMGN token snapshot. */
+export function buildLaunchEvidence(t: GMGNRawToken): LaunchIntelligenceInput {
+  const createdAt = t.creationTimestamp !== null && t.creationTimestamp > 0
+    ? new Date(t.creationTimestamp * 1000).toISOString()
+    : undefined;
+  const observedAt = new Date().toISOString();
+  return {
+    chain: t.chain,
+    address: t.address,
+    symbol: t.symbol,
+    launchpad: t.launchpadPlatform ?? undefined,
+    curveProgress: t.progress,
+    createdAt,
+    observedAt,
+    holderCount: t.holderCount > 0 ? t.holderCount : null,
+    buyVolumeUsd: t.volume1hUsd > 0 ? t.volume1hUsd : null,
+    graduated: isGraduatedToken(t) ? true : t.exchange ? false : null,
+    migrated: t.launchpadStatus === '1' ? true : t.launchpadStatus === '0' ? false : null,
+    devHoldingPct: t.devTeamHoldRate,
+    bundleRate: t.bundlerRate,
+  };
+}
+
+/** Build deterministic exit pre-flight evidence from a GMGN token snapshot plus open-position sizing. */
+export function buildExitEvidence(
+  t: GMGNRawToken,
+  positionAmount: number,
+  amountFraction = 1
+): ExitSafetyInput {
+  return {
+    chain: t.chain,
+    tokenAddress: t.address,
+    symbol: t.symbol,
+    priceUsd: t.priceUsd > 0 ? t.priceUsd : null,
+    positionAmount,
+    amountFraction,
+    liquidityUsd: t.liquidityUsd > 0 ? t.liquidityUsd : null,
+    volume24hUsd: volume24hOf(t) > 0 ? volume24hOf(t) : null,
+    buyTax: t.buyTax,
+    sellTax: t.sellTax,
+    canNotSell: t.isHoneypot === true ? true : null,
+    isHoneypot: t.isHoneypot,
+    creatorClose: t.creatorClose,
+    creatorTokenStatus: t.creatorTokenStatus,
+    bundlerRate: t.bundlerRate,
+    rugRatio: t.rugRatio,
+    top10HolderRate: t.top10HolderRate,
+    smartDegenCount: t.smartDegenCount,
+    priceChange1h: t.priceChange1h,
+  };
+}
+
+/** Build deterministic token-gatebook evidence from a GMGN token snapshot. */
+export function buildGatebookEvidence(t: GMGNRawToken): TokenGatebookInput {
+  const buyTax = t.buyTax !== null ? Number(String(t.buyTax).replace('%', '')) : null;
+  const sellTax = t.sellTax !== null ? Number(String(t.sellTax).replace('%', '')) : null;
+  const taxPct = [buyTax, sellTax].filter((v): v is number => v !== null && Number.isFinite(v)).reduce((a, b) => (a > b ? a : b), 0) || null;
+  return {
+    chain: t.chain,
+    address: t.address,
+    symbol: t.symbol,
+    mintAuthorityActive: t.renouncedMint ? false : null,
+    freezeAuthorityActive: t.renouncedFreeze ? false : null,
+    isHoneypot: t.isHoneypot,
+    isWashTrading: t.isWashTrading ? true : null,
+    taxPct,
+    top10HolderRate: t.top10HolderRate,
+    bundlerRate: t.bundlerRate,
+    isGraduated: isGraduatedToken(t) ? true : t.exchange ? false : null,
+    devTeamHoldRate: t.devTeamHoldRate,
+    holderCount: t.holderCount > 0 ? t.holderCount : null,
+    marketCapUsd: t.marketCapUsd > 0 ? t.marketCapUsd : null,
+    volume24hUsd: volume24hOf(t) > 0 ? volume24hOf(t) : null,
+  };
 }
 
 /** Dedupe by contract address (case-insensitive), 60s cooldown, pruned after 5 min */

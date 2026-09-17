@@ -16,8 +16,8 @@ export const THEME = {
   lime: '\x1b[38;2;204;255;0m',          // #CCFF00
   pastelPink: '\x1b[38;2;255;183;178m',  // #FFB7B2 Pastel Pink (Meme / Cute)
   pink: '\x1b[38;2;255;183;178m',        // #FFB7B2
-  lavender: '\x1b[38;2;214;199;255m',    // #D6C7FF Lavender Purple (NFT / VIP)
-  retroCyan: '\x1b[38;2;128;222;234m',   // #80DEEA Retro Cyan (LP / Dex)
+  lavender: '\x1b[38;2;214;199;255m',    // #D6C7FF Lavender Purple
+  retroCyan: '\x1b[38;2;128;222;234m',   // #80DEEA Retro Cyan
   cyan: '\x1b[38;2;128;222;234m',        // #80DEEA
   pastelYellow: '\x1b[38;2;255;245;157m',// #FFF59D Pastel Yellow (CT Alpha)
   yellow: '\x1b[38;2;255;245;157m',      // #FFF59D
@@ -28,7 +28,6 @@ export const THEME = {
   red: '\x1b[38;2;229;57;53m',           // #E53935
   denimBlue: '\x1b[38;2;2;119;189m',     // #0277BD Denim Blue (Whales / Base)
   blue: '\x1b[38;2;2;119;189m',          // #0277BD
-  polyCyan: '\x1b[38;2;0;229;255m',      // #00E5FF Prediction Cyan (Polymarket)
   royalViolet: '\x1b[38;2;123;31;162m',  // #7B1FA2 Royal Violet (Strategy)
 
   // Grays & Neutrals
@@ -44,7 +43,7 @@ export const C = THEME;
 /**
  * Returns a pixel-precise, perfectly aligned OpenCatz Mascot Banner with TrueColor RGB styling.
  */
-export function getOpenCatzHeaderBanner(tagline = 'Autonomous Agentic AI Crypto Intelligence (7 Chains)'): string {
+export function getOpenCatzHeaderBanner(tagline = 'Autonomous Agentic AI Memecoin Intelligence'): string {
   const { lime, white, lavender, cyan, gold, green, gray, bold, reset } = THEME;
 
   const lines = [
@@ -53,10 +52,10 @@ export function getOpenCatzHeaderBanner(tagline = 'Autonomous Agentic AI Crypto 
     `${lime}${bold}  █  ▄▄  ▄▄  █    ${white}█▄▄▄▀ █▄▄▄  █▀▄ █ █     █▄▄▄█   █     ▄▀ ${reset}`,
     `${lime}${bold}▄█    ▀   ▀   █▄  ${white}█     █▄▄▄▄ █  ▀█ ▀▄▄▄▄ █   █   █   ▄█▄▄▄${reset}`,
     ``,
-    `${lime}${bold}🐾 OPENCATZ AI · MULTICHAIN COMMAND CENTER (7 CHAINS) 🐾${reset}`,
+    `${lime}${bold}🐾 OPENCATZ AI · MEMECOIN COMMAND CENTER 🐾${reset}`,
     `${cyan}${tagline}${reset}`,
-    `${lavender}Solana • Robinhood #4663 • Base • Ethereum • Ink • Hyperliquid • Polymarket${reset}`,
-    `${green}● 24/7 Agentic AI Active${reset} ${gray}·${reset} ${gold}👑 15 Specialist AI Scouts Online${reset}`,
+    `${lavender}Solana • Robinhood #4663 • Base • Ethereum • Ink${reset}`,
+    `${green}● 24/7 Agentic AI Active${reset} ${gray}·${reset} ${gold}👑 6 Meme & CT Alpha Scouts Online${reset}`,
   ];
 
   return lines.join('\n');

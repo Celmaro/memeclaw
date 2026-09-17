@@ -86,17 +86,8 @@ export const slashCommands = [
               { name: 'Robinhood Chain Meme Agent', value: 'meme-robinhood' },
               { name: 'Base L2 Meme Agent', value: 'meme-base' },
               { name: 'Ethereum Meme Agent', value: 'meme-eth' },
-              { name: 'Ink Chain Meme Agent', value: 'meme-ink' },
-              { name: 'Solana LP Velocity Agent', value: 'lp-solana' },
-              { name: 'Robinhood LP Velocity Agent', value: 'lp-robinhood' },
-              { name: '💎 Ethereum NFT Sniper', value: 'nft-eth' },
-              { name: '🔵 Base L2 NFT Sniper', value: 'nft-base' },
-              { name: '🐙 Ink Chain NFT Radar', value: 'nft-ink' },
-              { name: '👑 Robinhood NFT Sniper', value: 'nft-robinhood' },
-              { name: '⚡ HyperEVM L1 NFT Radar', value: 'nft-hyperevm' },
-              { name: 'Whale Tracking Agent (Hyperliquid)', value: 'perps' },
-              { name: 'Polymarket Prediction Agent', value: 'prediction' },
-              { name: 'Smart CT & AI Alpha Agent', value: 'ct-alpha' }
+              { name: 'BNB Chain Meme Agent', value: 'meme-bsc' },
+              { name: 'Smart CT & AI Alpha Scout', value: 'ct-alpha' }
             )
         )
     )
@@ -112,47 +103,29 @@ export const slashCommands = [
               { name: 'Robinhood Chain Meme Agent', value: 'meme-robinhood' },
               { name: 'Base L2 Meme Agent', value: 'meme-base' },
               { name: 'Ethereum Meme Agent', value: 'meme-eth' },
-              { name: 'Ink Chain Meme Agent', value: 'meme-ink' },
-              { name: 'Solana LP Velocity Agent', value: 'lp-solana' },
-              { name: 'Robinhood LP Velocity Agent', value: 'lp-robinhood' },
-              { name: '💎 Ethereum NFT Sniper', value: 'nft-eth' },
-              { name: '🔵 Base L2 NFT Sniper', value: 'nft-base' },
-              { name: '🐙 Ink Chain NFT Radar', value: 'nft-ink' },
-              { name: '👑 Robinhood NFT Sniper', value: 'nft-robinhood' },
-              { name: '⚡ HyperEVM L1 NFT Radar', value: 'nft-hyperevm' },
-              { name: 'Whale Tracking Agent (Hyperliquid)', value: 'perps' },
-              { name: 'Polymarket Prediction Agent', value: 'prediction' },
-              { name: 'Smart CT & AI Alpha Agent', value: 'ct-alpha' }
+              { name: 'BNB Chain Meme Agent', value: 'meme-bsc' },
+              { name: 'Smart CT & AI Alpha Scout', value: 'ct-alpha' }
             )
         )
     )
     .addSubcommand(sub =>
       sub.setName('status')
-        .setDescription('View real-time status of all 15 sub-agents (active / paused)')
+        .setDescription('View real-time status of all active scouts (active / paused)')
     )
     .addSubcommand(sub =>
       sub.setName('trigger')
         .setDescription('Run an immediate on-demand screening pass for an agent')
         .addStringOption(opt =>
           opt.setName('agent')
-            .setDescription('Domain agent to trigger (e.g. meme-solana, nft-robinhood, perps)')
+            .setDescription('Domain agent to trigger (e.g. meme-solana, ct-alpha)')
             .setRequired(true)
             .addChoices(
               { name: 'Solana Meme Agent', value: 'meme-solana' },
               { name: 'Robinhood Chain Meme Agent', value: 'meme-robinhood' },
               { name: 'Base L2 Meme Agent', value: 'meme-base' },
               { name: 'Ethereum Meme Agent', value: 'meme-eth' },
-              { name: 'Ink Chain Meme Agent', value: 'meme-ink' },
-              { name: 'Solana LP Velocity Agent', value: 'lp-solana' },
-              { name: 'Robinhood LP Velocity Agent', value: 'lp-robinhood' },
-              { name: '💎 Ethereum NFT Sniper', value: 'nft-eth' },
-              { name: '🔵 Base L2 NFT Sniper', value: 'nft-base' },
-              { name: '🐙 Ink Chain NFT Radar', value: 'nft-ink' },
-              { name: '👑 Robinhood NFT Sniper', value: 'nft-robinhood' },
-              { name: '⚡ HyperEVM L1 NFT Radar', value: 'nft-hyperevm' },
-              { name: 'Whale Tracking Agent (Hyperliquid)', value: 'perps' },
-              { name: 'Polymarket Prediction Agent', value: 'prediction' },
-              { name: 'Smart CT & AI Alpha Agent', value: 'ct-alpha' }
+              { name: 'BNB Chain Meme Agent', value: 'meme-bsc' },
+              { name: 'Smart CT & AI Alpha Scout', value: 'ct-alpha' }
             )
         )
     ),
@@ -191,7 +164,7 @@ export const slashCommands = [
     .addSubcommand(sub =>
       sub.setName('view')
         .setDescription('View a strategy module source code')
-        .addStringOption(opt => opt.setName('name').setDescription('Strategy file name without extension (e.g. nft-default)').setRequired(true))
+        .addStringOption(opt => opt.setName('name').setDescription('Strategy file name without extension (e.g. meme-solana-default)').setRequired(true))
     )
     .addSubcommand(sub =>
       sub.setName('activate')
@@ -199,7 +172,7 @@ export const slashCommands = [
         .addStringOption(opt => opt.setName('strategy').setDescription('Strategy id').setRequired(true))
         .addStringOption(opt =>
           opt.setName('domain')
-            .setDescription('Screening domain (e.g. meme-solana, meme-robinhood, nft, perps)')
+            .setDescription('Screening domain (e.g. meme-solana, meme-robinhood, ct-alpha)')
             .setRequired(true)
         )
     )

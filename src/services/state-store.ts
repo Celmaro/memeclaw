@@ -24,6 +24,63 @@ export interface SignalLedgerEntry {
 }
 
 /**
+ * Callout Ledger Entry — append-only trace for fast-path push/webhook callouts
+ * (GMGN openapi agents, wallet callouts, tape scanners). Kept separate from the
+ * swarm signal ledger because it has a different shape and should never be
+ * confused with a consensus-evaluated signal.
+ */
+export interface CalloutEventEntry {
+  id: string;
+  timestamp: string;
+  traceId: string;
+  source: string;
+  kind: string;
+  chain: string;
+  tokenAddress: string | null;
+  tokenSymbol: string;
+  side?: 'buy' | 'sell';
+  maker?: string;
+  amountUsd: number;
+  envelopeId: string;
+  dedupeKey: string;
+  rawPayloadJson?: string;
+}
+
+/**
+ * Decision Memory Entry — immutable trace of signal -> decision -> order ->
+ * journal lifecycle, keyed by the same traceId wherever possible.
+ */
+export type DecisionMemoryStage =
+  | 'SIGNAL_SEEN'
+  | 'DECISION_MADE'
+  | 'ORDER_SUBMITTED'
+  | 'ORDER_FILLED'
+  | 'ORDER_CANCELLED'
+  | 'ORDER_FAILED'
+  | 'JOURNAL_LOGGED';
+
+export interface DecisionMemoryEntry {
+  id: string;
+  traceId: string;
+  stage: DecisionMemoryStage;
+  source: string;
+  chain: string;
+  tokenAddress?: string;
+  tokenSymbol?: string;
+  signalScore?: number;
+  decisionId?: string;
+  decisionType?: string;
+  decisionReason?: string;
+  intentId?: string;
+  orderId?: string;
+  orderStatus?: string;
+  filledNotionalUsd?: number;
+  journalId?: string;
+  timestamp: string;
+  rawPayloadJson?: string;
+}
+
+/**
  * Token tracked by the wallet auto-tracker — resolved on startup via GMGN token info.
  */
 export interface TrackedToken {
@@ -57,6 +114,12 @@ export interface OpenCatzPersistedState {
 
   // Signal audit ledger (append-only)
   signalLedger: SignalLedgerEntry[];
+
+  // Callout audit ledger (append-only; fast-path GMGN/tape push events)
+  calloutLedger: CalloutEventEntry[];
+
+  // Decision memory audit ledger (append-only; signal -> decision -> order -> journal)
+  decisionMemory: DecisionMemoryEntry[];
 
   // Persistent signal dedup (survives restarts)
   dedupEntries: Record<string, number>;
@@ -116,6 +179,8 @@ export class StateStore {
       walletKeys: {},
       agentStates: {},
       signalLedger: [],
+      calloutLedger: [],
+      decisionMemory: [],
       dedupEntries: {},
       trackedTokens: [],
       trackedNftCollections: [],
@@ -167,6 +232,8 @@ export class StateStore {
         walletKeys: data.walletKeys || {},
         agentStates: data.agentStates || {},
         signalLedger: Array.isArray(data.signalLedger) ? data.signalLedger : [],
+        calloutLedger: Array.isArray(data.calloutLedger) ? data.calloutLedger : [],
+        decisionMemory: Array.isArray(data.decisionMemory) ? data.decisionMemory : [],
         dedupEntries: data.dedupEntries || {},
         trackedTokens: Array.isArray(data.trackedTokens) ? data.trackedTokens : [],
         trackedNftCollections: Array.isArray(data.trackedNftCollections) ? data.trackedNftCollections : [],
@@ -367,6 +434,48 @@ export class StateStore {
     if (domain) {
       const norm = domain.toLowerCase().trim();
       list = list.filter((e) => e.domain.toLowerCase() === norm || e.sourceAgent.toLowerCase() === norm);
+    }
+    return list.slice(-limit).reverse();
+  }
+
+  // ==========================================
+  // CALLOUT LEDGER (Append-Only Fast-Path Trace)
+  // ==========================================
+
+  public appendCallout(entry: CalloutEventEntry): void {
+    this.state.calloutLedger.push(entry);
+
+    // Keep callout trace bounded like the signal ledger.
+    if (this.state.calloutLedger.length > 10000) {
+      this.state.calloutLedger = this.state.calloutLedger.slice(-5000);
+    }
+
+    this.scheduleSave();
+  }
+
+  public getCalloutLedger(limit = 50): CalloutEventEntry[] {
+    return (this.state.calloutLedger || []).slice(-limit).reverse();
+  }
+
+  // ==========================================
+  // DECISION MEMORY LEDGER (Append-Only Trace)
+  // ==========================================
+
+  public appendDecisionMemoryEntry(entry: DecisionMemoryEntry): void {
+    this.state.decisionMemory.push(entry);
+
+    // Keep decision trace bounded like the signal ledger.
+    if (this.state.decisionMemory.length > 10000) {
+      this.state.decisionMemory = this.state.decisionMemory.slice(-5000);
+    }
+
+    this.scheduleSave();
+  }
+
+  public getDecisionMemory(traceId?: string, limit = 50): DecisionMemoryEntry[] {
+    let list = this.state.decisionMemory || [];
+    if (traceId) {
+      list = list.filter((e) => e.traceId === traceId);
     }
     return list.slice(-limit).reverse();
   }

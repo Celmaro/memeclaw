@@ -31,6 +31,16 @@ export interface EVMSwapRequest {
   fromToken: string;
   toToken: string;
   amountEth: number;
+  /** Optional token decimals for `fromToken` when it is an ERC-20 and `amountEth` is a UI amount. */
+  inputDecimals?: number;
+}
+
+export interface EVMSellRequest {
+  chain: string | number;
+  tokenAddress: string;
+  amountTokens: number; // Raw base units unless `decimals` is provided.
+  decimals?: number;    // When set, `amountTokens` is interpreted as UI amount and converted to base units.
+  slippagePercentage?: number;
 }
 
 const CHAIN_ID_MAP: Record<string, number> = {
@@ -230,6 +240,13 @@ export class EVMTradeAdapter {
 
       // Live Relay step execution: Request quote with calldata step, sign via viem, broadcast
       const userAddr = walletService.getEvmAddress();
+      const inputDecimals =
+        request.inputDecimals !== undefined && Number.isFinite(request.inputDecimals) && request.inputDecimals >= 0
+          ? Math.floor(request.inputDecimals)
+          : 18;
+      const amountBase = inputDecimals === 18
+        ? Math.round(request.amountEth * 1e18)
+        : Math.round(request.amountEth * Math.pow(10, inputDecimals));
       const response = await fetch('https://api.relay.link/quote/v2', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -239,7 +256,7 @@ export class EVMTradeAdapter {
           destinationChainId: chainId,
           originCurrency: request.fromToken,
           destinationCurrency: request.toToken,
-          amount: (request.amountEth * 1e18).toString(),
+          amount: amountBase.toString(),
         }),
       });
 
@@ -291,5 +308,23 @@ export class EVMTradeAdapter {
         error: errMsg,
       };
     }
+  }
+
+  /**
+   * Sell a token for the chain native currency through the same Relay/DEX swap
+   * path as `swapToken`. Dry-run stays simulated; live mode still routes through
+   * the wallet service and Relay quote/sign/broadcast flow.
+   */
+  public async executeSellToken(request: EVMSellRequest, walletService?: WalletService): Promise<EVMTradeResult> {
+    return this.swapToken(
+      {
+        chain: request.chain,
+        fromToken: request.tokenAddress,
+        toToken: '0x0000000000000000000000000000000000000000',
+        amountEth: request.amountTokens,
+        inputDecimals: request.decimals,
+      },
+      walletService
+    );
   }
 }

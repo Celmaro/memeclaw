@@ -224,17 +224,7 @@ export async function handleChatInput(
       'call-meme-robinhood': { agent: 'meme-robinhood', name: 'Robinhood Chain Meme Agent' },
       'call-meme-base': { agent: 'meme-base', name: 'Base L2 Meme Agent' },
       'call-meme-eth': { agent: 'meme-eth', name: 'Ethereum Meme Agent' },
-      'call-meme-ink': { agent: 'meme-ink', name: 'Ink Chain Meme Agent' },
-      'call-lp-solana': { agent: 'lp-solana', name: 'Solana LP Velocity Agent' },
-      'call-lp-robinhood': { agent: 'lp-robinhood', name: 'Robinhood LP Velocity Agent' },
-      'call-nft-eth': { agent: 'nft-eth', name: '💎 Ethereum NFT Sniper' },
-      'call-nft-base': { agent: 'nft-base', name: '🔵 Base L2 NFT Sniper' },
-      'call-nft-ink': { agent: 'nft-ink', name: '🐙 Ink Chain NFT Radar' },
-      'call-nft-robinhood': { agent: 'nft-robinhood', name: '👑 Robinhood NFT Sniper' },
-      'call-nft-hyperevm': { agent: 'nft-hyperevm', name: '⚡ HyperEVM L1 NFT Radar' },
-      'call-nft-sniping': { agent: 'nft-eth', name: '💎 Ethereum NFT Sniper' }, // legacy alias
-      'call-whale-tracking': { agent: 'perps', name: 'Whale Tracking Agent' },
-      'call-prediction-markets': { agent: 'prediction', name: 'Polymarket Prediction Agent' },
+      'call-meme-bsc': { agent: 'meme-bsc', name: 'BNB Chain Meme Agent' },
       'call-ct-alpha': { agent: 'ct-alpha', name: 'Smart CT & AI Alpha Agent' },
     };
 
@@ -251,11 +241,11 @@ export async function handleChatInput(
           // Fall through — handled by the shared status block below
         } else if (subcommand === 'start') {
           Object.values(channelDomainMap).forEach(d => hub.toggleChannelScreening(interaction.channelId, d.agent, true));
-          await interaction.editReply('⚡ **Global Master Screening Activated!** All 15 Sub-Agent domains are now active.');
+          await interaction.editReply('⚡ **Global Master Screening Activated!** All 6 active scouts are now running.');
           return;
         } else {
           Object.values(channelDomainMap).forEach(d => hub.toggleChannelScreening(interaction.channelId, d.agent, false));
-          await interaction.editReply('⏸️ **Global Master Screening Paused!** All 15 Sub-Agent domains are now paused.');
+          await interaction.editReply('⏸️ **Global Master Screening Paused!** All active scouts are now paused.');
           return;
         }
       } else {
@@ -289,16 +279,7 @@ export async function handleChatInput(
         { id: 'meme-robinhood', label: 'Robinhood Chain Meme Agent',  emoji: '🌸' },
         { id: 'meme-base',      label: 'Base L2 Meme Agent',          emoji: '🔵' },
         { id: 'meme-eth',       label: 'Ethereum Meme Agent',         emoji: '💎' },
-        { id: 'meme-ink',       label: 'Ink Chain Meme Agent',        emoji: '🐙' },
-        { id: 'lp-solana',      label: 'Solana LP Velocity Agent',    emoji: '🌊' },
-        { id: 'lp-robinhood',   label: 'Robinhood LP Velocity Agent', emoji: '💧' },
-        { id: 'nft-eth',        label: '💎 Ethereum NFT Sniper',       emoji: '💎' },
-        { id: 'nft-base',       label: '🔵 Base L2 NFT Sniper',        emoji: '🔵' },
-        { id: 'nft-ink',        label: '🐙 Ink Chain NFT Radar',      emoji: '🐙' },
-        { id: 'nft-robinhood',  label: '👑 Robinhood & Catz Sniper',   emoji: '🐱' },
-        { id: 'nft-hyperevm',   label: '⚡ HyperEVM L1 NFT Radar',    emoji: '⚡' },
-        { id: 'perps',          label: 'Whale Tracking Agent',        emoji: '🐋' },
-        { id: 'prediction',     label: 'Polymarket Prediction Agent', emoji: '🎯' },
+        { id: 'meme-bsc',       label: 'BNB Chain Meme Agent',        emoji: '🟡' },
         { id: 'ct-alpha',       label: 'Smart CT & AI Alpha Agent',   emoji: '☀️' },
       ];
 
@@ -350,7 +331,7 @@ export async function handleChatInput(
       const dryRun = isDryRunMode();
       const autoExecute = process.env.AUTO_EXECUTE_ENABLED === 'true';
       const active = hub.getActiveDomains();
-      const keyNames = ['GMGN_API_KEY', 'GMGN_API_KEY_ROBINHOOD', 'OPENSEA_API_KEY', 'TWEX_API_KEY', 'GOPLUS_API_KEY', 'AI_API_KEY'];
+      const keyNames = ['GMGN_API_KEY', 'GMGN_API_KEY_ROBINHOOD', 'TWEX_API_KEY', 'GOPLUS_API_KEY', 'AI_API_KEY'];
       const keys = keyNames.map((k) => {
         const v = process.env[k];
         return `• \`${k}\`: ${v && !v.includes('YOUR_') && !v.includes('placeholder') && !v.includes('mock') ? '✅ SET' : '❌ not set'}`;

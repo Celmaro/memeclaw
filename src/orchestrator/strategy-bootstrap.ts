@@ -10,16 +10,7 @@ const DOMAINS = [
   'meme-robinhood',
   'meme-base',
   'meme-eth',
-  'meme-ink',
-  'lp-solana',
-  'lp-robinhood',
-  'nft-eth',
-  'nft-base',
-  'nft-ink',
-  'nft-robinhood',
-  'nft-hyperevm',
-  'perps',
-  'prediction',
+  'meme-bsc',
   'ct-alpha',
 ];
 
@@ -32,11 +23,7 @@ Export a default object: { id, name, version, description, params, evaluate(ctx)
 - Rules: fail-closed (missing data -> SKIP with confidence 0, never fake-pass); quality floor >= 80;
   honor the user's prompt as hard gates and scoring; deterministic, no LLM calls inside evaluate.
 - Available ctx fields:
-  - meme-solana / meme-robinhood: ctx.gmgn (volume_24h, liquidity, rug_ratio, rat_trader_amount_rate, top_10_holder_rate, cto_flag, smart_degen_count), ctx.securityAuditPassed.
-  - lp-solana / lp-robinhood: ctx.pool (tvlUsd, volume24hUsd, fee24hUsd, feesToTvlRatio24h, marketCapUsd), ctx.securityAuditPassed.
-  - perps: ctx.position, ctx.leverage, ctx.pnlPct, ctx.fundingRate.
-  - nft: ctx.floorPriceEth, ctx.floorSurge1hPct, ctx.volumeSpike1hRatio, ctx.salesVelocity1h.
-  - prediction: ctx.market, ctx.volume24h, ctx.spread, ctx.liquidityUsd.
+  - meme domains: ctx.gmgn (volume_24h, liquidity, rug_ratio, rat_trader_amount_rate, top_10_holder_rate, cto_flag, smart_degen_count), ctx.securityAuditPassed.
   - ct-alpha: ctx.tweet, ctx.smartFollowersCount, ctx.sentimentScore.
 Return ONLY the .mjs code, no markdown fences, no commentary.
 `;

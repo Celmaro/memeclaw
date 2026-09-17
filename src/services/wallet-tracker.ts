@@ -5,7 +5,7 @@ import { PositionManager } from '../position/position-manager.js';
 import { StateStore } from '../services/state-store.js';
 import { WalletService } from '../services/wallet-service.js';
 import { TradeJournalService } from '../services/trade-journal-service.js';
-import { GMGNAdapter } from '../adapters/gmgn-adapter.js';
+import { GMGNAdapter, type SolChain } from '../adapters/gmgn-adapter.js';
 import { SolanaTradeAdapter } from '../adapters/solana-adapter.js';
 
 /**
@@ -33,7 +33,7 @@ export interface WalletTrackerDeps {
 }
 
 export interface WalletHolding {
-  chain: 'sol' | 'robinhood';
+  chain: SolChain;
   address: string;
   amount: number;
 }
@@ -162,12 +162,12 @@ export class WalletTracker {
   }
 
   /** Scan tracked EVM tokens for non-zero balances. Fail-closed []. */
-  public async scanEvmHoldings(): Promise<Array<{ address: string }>> {
+  public async scanEvmHoldings(): Promise<Array<{ chain: SolChain; address: string }>> {
     return (await this.scanEvmHoldingsSafe()).holdings;
   }
 
   private async scanEvmHoldingsSafe(): Promise<{
-    holdings: Array<{ address: string }>;
+    holdings: Array<{ chain: SolChain; address: string }>;
     ok: boolean;
     scannedOk: Set<string>;
   }> {
@@ -177,7 +177,7 @@ export class WalletTracker {
     try {
       const owner = this.walletService.getEvmAddress();
       const tracked = this.stateStore.getTrackedTokens().filter((t) => t.chain !== 'sol');
-      const holdings: Array<{ address: string }> = [];
+      const holdings: Array<{ chain: SolChain; address: string }> = [];
       const scannedOk = new Set<string>();
       for (const tok of tracked) {
         const balance = await this.evmBalanceReader(tok.chain, tok.address, owner);
@@ -186,7 +186,7 @@ export class WalletTracker {
           continue;
         }
         scannedOk.add(tok.address.toLowerCase());
-        if (balance > 0n) holdings.push({ address: tok.address });
+        if (balance > 0n) holdings.push({ chain: tok.chain as SolChain, address: tok.address });
       }
       return { holdings, ok: true, scannedOk };
     } catch (err: unknown) {
@@ -215,20 +215,21 @@ export class WalletTracker {
 
     const holdings: WalletHolding[] = [
       ...solanaScan.holdings.map((h) => ({ chain: 'sol' as const, address: h.mint, amount: h.amount })),
-      ...evmScan.holdings.map((h) => ({ chain: 'robinhood' as const, address: h.address, amount: 0 })),
+      ...evmScan.holdings.map((h) => ({ chain: h.chain, address: h.address, amount: 0 })),
     ];
 
-    // Dedupe by address (case-insensitive)
+    // Dedupe by chain + address (case-insensitive), because the same 0x address
+    // can exist on Base, BSC, and Robinhood independently.
     const seen = new Set<string>();
     const deduped = holdings.filter((h) => {
-      const key = h.address.toLowerCase();
+      const key = `${h.chain}:${h.address.toLowerCase()}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
 
     const active = this.positionManager.getActivePositions();
-    const heldAddresses = new Set(deduped.map((h) => h.address.toLowerCase()));
+    const heldKeys = new Set(deduped.map((h) => `${h.chain}:${h.address.toLowerCase()}`));
 
     for (const holding of deduped) {
       const tok = this.gmgn ? await this.gmgn.fetchTokenInfo(holding.chain, holding.address) : null;
@@ -236,12 +237,17 @@ export class WalletTracker {
         console.warn(`[WALLET TRACKER] Skipping ${holding.chain} holding ${holding.address}: token info unavailable`);
         continue;
       }
-      const pos = active.find((p) => p.contractAddress.toLowerCase() === holding.address.toLowerCase());
+      const pos = active.find(
+        (p) =>
+          p.contractAddress.toLowerCase() === holding.address.toLowerCase() &&
+          (!p.chain || p.chain === holding.chain)
+      );
       if (!pos) {
         this.positionManager.addPosition({
           id: holding.address,
           symbol: tok.symbol || 'TOKEN',
           contractAddress: holding.address,
+          chain: holding.chain,
           entryPriceUsd: tok.priceUsd,
           currentPriceUsd: tok.priceUsd,
           amount: holding.amount || 0,
@@ -276,8 +282,9 @@ export class WalletTracker {
     // never look like a "not held" and trigger a wrongful auto-close.
     if (solanaScan.ok || evmScan.ok) {
       for (const pos of active) {
-        if (heldAddresses.has(pos.contractAddress.toLowerCase())) continue;
-        const isEvm = pos.contractAddress.toLowerCase().startsWith('0x');
+        const posChain = pos.chain ?? (pos.contractAddress.toLowerCase().startsWith('0x') ? 'robinhood' : 'sol');
+        if (heldKeys.has(`${posChain}:${pos.contractAddress.toLowerCase()}`)) continue;
+        const isEvm = posChain !== 'sol';
         const scanOk = isEvm ? evmScan.scannedOk.has(pos.contractAddress.toLowerCase()) : solanaScan.ok;
         if (!scanOk) continue;
         this.positionManager.removePosition(pos.id);

@@ -6,8 +6,8 @@
   █  ▄▄  ▄▄  █    █▄▄▄▀ █▄▄▄  █▀▄ █ █     █▄▄▄█   █     ▄▀ 
 ▄█    ▀   ▀   █▄  █     █▄▄▄▄ █  ▀█ ▀▄▄▄▄ █   █   █   ▄█▄▄▄
 
-🐾 OPENCATZ AI (MULTICHAIN EDITION) · 15 SPECIALIST AGENTS · 7 BLOCKCHAINS
-Solana • Robinhood #4663 • Base • Ethereum • Ink • Hyperliquid • Polymarket
+🐾 OPENCATZ AI (MEMECOIN EDITION) · 6 MEME & CT ALPHA SCOUTS
+Solana • Robinhood #4663 • Base • Ethereum • Ink
     </pre>
   </a>
 </p>
@@ -16,15 +16,15 @@ Solana • Robinhood #4663 • Base • Ethereum • Ink • Hyperliquid • Pol
 
 <p align="center">
   <a href="https://opencatz.xyz"><img src="https://img.shields.io/badge/Web_Portal-opencatz.xyz-brightgreen.svg?style=flat-square" alt="Web Portal"></a>
-  <a href="https://opencatz.xyz"><img src="https://img.shields.io/badge/Chains-7_Blockchains-7b5cff.svg?style=flat-square" alt="7 Blockchains"></a>
+  <a href="https://opencatz.xyz"><img src="https://img.shields.io/badge/Chains-5_Blockchains-7b5cff.svg?style=flat-square" alt="5 Blockchains"></a>
   <a href="https://discord.gg/5HMy95ZHuY"><img src="https://img.shields.io/badge/Discord-Community-5865F2.svg?style=flat-square&logo=discord&logoColor=white" alt="Discord"></a>
   <a href="https://x.com/pxidentities"><img src="https://img.shields.io/badge/X-%40pxidentities-black.svg?style=flat-square&logo=x&logoColor=white" alt="X (Twitter)"></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-%3E%3D22.12-green.svg?style=flat-square&logo=node.js&logoColor=white" alt="Node Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="License: MIT"></a>
-  <a href="https://vitest.dev/"><img src="https://img.shields.io/badge/Tests-44%20Passed%20(368%20tests)-brightgreen.svg?style=flat-square" alt="Tests"></a>
+  <a href="https://vitest.dev/"><img src="https://img.shields.io/badge/Tests-43%20Passed%20(341%20tests)-brightgreen.svg?style=flat-square" alt="Tests"></a>
 </p>
 
-**OpenCatz AI** is an open-source autonomous **Agentic AI Crypto Intelligence System & On-Chain Ecosystem** on **Robinhood Chain (Chain ID: 4663)**. It combines a squad of **15 Specialist AI Scouts** across **7 major blockchains** with an on-chain **Dual-Sided Deflationary Vault & NFT Liquidity Peg**.
+**OpenCatz AI** is an open-source autonomous **Agentic AI Memecoin Intelligence System** on **Robinhood Chain (Chain ID: 4663)**. It combines a squad of **6 Meme & CT Alpha Scouts** across **5 major blockchains**.
 
 Candidate signals pass through a **Collaborative Consensus Protocol** requiring a **≥ 80% Confidence Score** before delivering alerts, trade audits, and execution via Discord, Terminal TUI, or Telegram.
 
@@ -61,7 +61,7 @@ The interactive wizard will guide you through:
 1. Setting up your **Discord Bot Token** and **Client ID** (Optional if using Telegram/TUI standalone).
 2. Setting up your **Telegram Bot Token** & **Chat ID** (Optional for Telegram notifications & forum topics).
 3. Selecting your **AI LLM Provider** (OpenRouter Free tier, Claude, GPT-4, Z.ai, DeepSeek, etc.).
-4. Configuring Web3 API keys (GMGN, OpenSea, Krystal Cloud, Twex).
+4. Configuring Web3 API keys (GMGN, Twex, GoPlus).
 5. Verifying your RPC endpoints with automated diagnostics.
 
 ### 3. Launch OpenCatz
@@ -91,13 +91,11 @@ OpenCatz can run **100% standalone without Discord**, broadcasting all multi-cha
    TELEGRAM_CHAT_ID=-1001234567890   # Group Chat ID (starts with -100)
    ```
 4. Start OpenCatz (`opencatz run` or `opencatz deploy`).
-5. OpenCatz will **automatically provision 17 sub-channels (Forum Topics)**:
+5. OpenCatz will **automatically provision 8 sub-channels (Forum Topics)**:
    - `#opencatz-control-room` (Interactive dashboard with inline toggle buttons)
    - `#audit-on-demand`
-   - `#call-meme-solana`, `#call-meme-robinhood`, `#call-meme-base`, `#call-meme-eth`, `#call-meme-ink`
-   - `#call-lp-solana`, `#call-lp-robinhood`
-   - `#call-nft-eth`, `#call-nft-base`, `#call-nft-ink`, `#call-nft-robinhood`, `#call-nft-hyperevm`
-   - `#call-whale-tracking`, `#call-prediction-markets`, `#call-ct-alpha`
+   - `#call-meme-solana`, `#call-meme-robinhood`, `#call-meme-base`, `#call-meme-eth`, `#call-meme-bsc`
+   - `#call-ct-alpha`
 
 > **Note:** If you use a standard Telegram group (without Topics) or a direct 1-on-1 chat with the bot, OpenCatz will automatically fallback to broadcasting all calls directly into the main chat feed without error.
 
@@ -117,14 +115,14 @@ OpenCatz can run **100% standalone without Discord**, broadcasting all multi-cha
                  │   Strategy Compiler · Key Pool       │
                  └──────────────────┬───────────────────┘
                                     │
-    ┌──────────┬──────────┬─────────┼──────────┬──────────┬──────────┐
-    ▼          ▼          ▼         ▼          ▼          ▼          ▼
-┌────────┐ ┌────────┐ ┌───────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
-│SOLANA  │ │ROBIN-  │ │BASE L2│ │ETHEREUM│ │INK L2  │ │HYPER-  │ │POLY-   │
-│MEME/LP │ │HOOD #4663│ │MEME/NFT│ │MEME/NFT│ │MEME/NFT│ │LIQUID  │ │MARKET/ │
-│Pump/DLMM│ │Uniswap│ │Aerodrome│ │Uniswap │ │Superchain│ │Perps/Spot│ │CT-Alpha│
-└───┬────┘ └───┬────┘ └───┬───┘ └───┬────┘ └───┬────┘ └───┬────┘ └───┬────┘
-    └──────────┴──────────┼─────────┴──────────┴──────────┴──────────┘
+    ┌──────────┬──────────┬─────────┬──────────┬──────────┬──────────┐
+    ▼          ▼          ▼         ▼          ▼          ▼
+┌────────┐ ┌────────┐ ┌───────┐ ┌────────┐ ┌────────┐ ┌────────┐
+│SOLANA  │ │ROBIN-  │ │BASE L2│ │ETHEREUM│ │INK L2  │ │CT      │
+│MEME    │ │HOOD #4663│ │MEME   │ │MEME    │ │MEME    │ │ALPHA   │
+│Pump/DLMM│ │Uniswap│ │Aerodrome│ │Uniswap │ │Superchain│ │KOL Calls│
+└───┬────┘ └───┬────┘ └───┬───┘ └───┬────┘ └───┬────┘ └───┬────┘
+    └──────────┴──────────┼─────────┴──────────┴──────────┘
                           │ Candidate Opportunities
                           ▼
         ┌────────────────────────────────────────────────┐
@@ -141,14 +139,14 @@ OpenCatz can run **100% standalone without Discord**, broadcasting all multi-cha
 ```
 
 - **Core Hub & Orchestrator:** The local control plane for chat, 9-Lives risk management, burner wallets, and natural-language token audits.
-- **15 Specialist AI Scouts:** 24/7 background screening agents stalking opportunities across 7 chains.
+- **6 Meme & CT Alpha Scouts:** 24/7 background screening agents stalking opportunities across 5 chains.
 - **Collaborative Consensus Protocol:** Multi-agent voting system requiring a strict $\ge 80\%$ confidence score before delivering call cards.
 - **9-Lives Risk Engine:** Capital preservation engine enforcing stop-losses, take-profit ladders, and dynamic trailing protection.
 - **Universal Multi-Key Pool:** Automatic rotation on HTTP 429/401/403 across unlimited backup keys.
 
 ---
 
-## 🤖 15 Specialist AI Scouts (5 Divisions)
+## 🤖 6 Meme & CT Alpha Scouts
 
 | Division | AI Scout | Channel | Scope & Web3 Data Sources |
 | :--- | :--- | :--- | :--- |
@@ -156,16 +154,7 @@ OpenCatz can run **100% standalone without Discord**, broadcasting all multi-cha
 | | **Robinhood Meme Scout** | `#call-meme-robinhood`| Robinhood Chain EVM L2 (#4663) tokens (GMGN + GoPlus) |
 | | **Base Meme Scout** | `#call-meme-base` | Base L2 DEX tokens & Smart Money Flow (GMGN + GoPlus) |
 | | **Ethereum Meme Scout** | `#call-meme-eth` | Ethereum Mainnet DEX tokens & Whale Accumulation |
-| | **Ink Meme Scout** | `#call-meme-ink` | Ink Chain / Kraken L2 Superchain DEX momentum |
-| **💧 LP Yield Scouts** | **Solana LP Scout** | `#call-lp-solana` | Meteora DLMM Concentrated Liquidity pools (Fee APR & Vol/TVL) |
-| | **Robinhood LP Scout** | `#call-lp-robinhood` | Robinhood Chain Uniswap V3 concentrated pools (Krystal Cloud) |
-| **🖼️ NFT Floor Scouts**| **Ethereum NFT Scout** | `#call-nft-eth` | OpenSea Bluechips sweeps & 1h floor surges $\ge +20\%$ |
-| | **Base NFT Scout** | `#call-nft-base` | Base L2 creator mints, Zora drops & trending volume breakouts |
-| | **Ink NFT Scout** | `#call-nft-ink` | Ink Chain / Kraken L2 collections & trending mint momentum |
-| | **Robinhood NFT Scout**| `#call-nft-robinhood` | Robinhood Chain NFT collection sweeps & floor spikes |
-| | **HyperEVM NFT Scout** | `#call-nft-hyperevm` | Hyperliquid HyperEVM L1 native collections & volume breakouts |
-| **🐋 Whale & Perps** | **Whale & Perps Scout** | `#call-whale-tracking`| Hyperliquid L1 institutional positioning, funding & spot flows |
-| **🔮 Alpha Scouts** | **Prediction Scout** | `#call-prediction-markets` | Polymarket odds mispricing, arbitrage & whale bets |
+| | **BSC Meme Scout** | `#call-meme-bsc` | BNB Chain / BSC DEX momentum (GMGN + GoPlus) |
 | | **Smart CT Alpha Scout**| `#call-ct-alpha` | Twitter/X smart money KOL calls, AI narratives & airdrops |
 
 ---
@@ -199,7 +188,7 @@ OpenCatz can run **100% standalone without Discord**, broadcasting all multi-cha
 ### 🔎 Intelligence, Audits & Screening
 | Command | Subcommands / Options | Description |
 | :--- | :--- | :--- |
-| `/screening` | `start` / `stop` / `status` / `trigger` | Control 24/7 background AI scouts across all 15 specialist channels |
+| `/screening` | `start` / `stop` / `status` / `trigger` | Control 24/7 background AI scouts across all 6 active channels |
 | `/analyze` | `contract:<address>` | Forces an on-demand 12-point security, rug-check, and liquidity audit |
 | `/pump` | `contract:<address>` | Pump.fun bonding curve progress & Raydium graduation tracker |
 | `/holders` | `contract:<address>` | Top token holders audit, cluster detection & insider ownership |
@@ -227,13 +216,6 @@ OpenCatz can run **100% standalone without Discord**, broadcasting all multi-cha
 
 ---
 
-## 🏛️ OpenCatz Ecosystem & Smart Contracts
-
-The OpenCatz on-chain smart contracts (NFT Collection, Liquidity Peg Vault, and Whitepaper) are maintained in the dedicated official repository:
-👉 **[github.com/dizcorvus/opencatz-nft](https://github.com/dizcorvus/opencatz-nft)**
-
----
-
 ## 🛡️ 9-Lives Automated Risk Guard
 
 Every trade candidate is governed by the automated **9-Lives Risk Engine**:
@@ -248,7 +230,7 @@ Every trade candidate is governed by the automated **9-Lives Risk Engine**:
 
 ## 🧪 Testing & Verification
 
-OpenCatz AI includes a comprehensive test suite covering all 15 sub-agents, Web3 adapters, risk managers, and consensus logic:
+OpenCatz AI includes a comprehensive test suite covering the active meme and CT Alpha scouts, Web3 adapters, risk managers, and consensus logic:
 
 ```bash
 # Run full Vitest suite
@@ -256,8 +238,8 @@ npm test
 ```
 
 ```
- Test Files  44 passed (44)
-      Tests  368 passed (368)
+ Test Files  43 passed (43)
+      Tests  341 passed (341)
    Duration  ~11s
 ```
 

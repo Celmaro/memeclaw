@@ -98,7 +98,7 @@ export class TelegramService {
   }
 
   /**
-   * Auto-bootstrap all 17 OpenCatz Sub-Channels / Forum Topics in Telegram Group
+   * Auto-bootstrap active OpenCatz sub-channels / forum topics in Telegram Group
    */
   public async bootstrapTelegramTopics(): Promise<Record<string, number | null>> {
     if (!this.isEnabled()) return {};
@@ -111,16 +111,7 @@ export class TelegramService {
       'call-meme-robinhood',
       'call-meme-base',
       'call-meme-eth',
-      'call-meme-ink',
-      'call-lp-solana',
-      'call-lp-robinhood',
-      'call-nft-eth',
-      'call-nft-base',
-      'call-nft-ink',
-      'call-nft-robinhood',
-      'call-nft-hyperevm',
-      'call-whale-tracking',
-      'call-prediction-markets',
+      'call-meme-bsc',
       'call-ct-alpha',
     ];
 
@@ -211,8 +202,8 @@ export class TelegramService {
         chartUrl = `https://dexscreener.com/base/${ca}`;
       } else if (topicName === 'call-meme-eth') {
         chartUrl = `https://dexscreener.com/ethereum/${ca}`;
-      } else if (topicName === 'call-meme-ink') {
-        chartUrl = `https://dexscreener.com/ink/${ca}`;
+      } else if (topicName === 'call-meme-bsc') {
+        chartUrl = `https://dexscreener.com/bsc/${ca}`;
       } else if (topicName === 'call-meme-robinhood') {
         chartUrl = `https://dexscreener.com/robinhood/${ca}`;
       }
@@ -234,9 +225,6 @@ ${chartUrl ? `📊 [View Chart on DexScreener](${chartUrl})` : ''}
     if (topicName) {
       const norm = topicName.toLowerCase();
       threadId = this.topics.get(norm);
-      if (!threadId && norm === 'call-nft-sniping') {
-        threadId = this.topics.get('call-nft-eth');
-      }
     }
 
     return this.sendMessage(message, 'Markdown', undefined, threadId);
@@ -255,21 +243,12 @@ ${chartUrl ? `📊 [View Chart on DexScreener](${chartUrl})` : ''}
 🛡️ *Max Drawdown:* ${risk ? `${risk.maxDrawdownLimitPct}%` : 'n/a'}
 🛡️ *Max Position Size:* ${risk ? `$${risk.maxPositionSizeUsd}` : 'n/a'}
 
-🤖 *Active Sub-Agents Status (15 Scouts):*
+🤖 *Active Sub-Agents Status (6 Scouts):*
 • 🐣 Solana Meme (\`meme-solana\`): ${getStatus('meme-solana')}
 • 🔷 Robinhood Meme (\`meme-robinhood\`): ${getStatus('meme-robinhood')}
 • 🔵 Base Meme (\`meme-base\`): ${getStatus('meme-base')}
 • 💎 ETH Meme (\`meme-eth\`): ${getStatus('meme-eth')}
-• 🐙 Ink Meme (\`meme-ink\`): ${getStatus('meme-ink')}
-• ⚡ Solana LP (\`lp-solana\`): ${getStatus('lp-solana')}
-• 💧 Robinhood LP (\`lp-robinhood\`): ${getStatus('lp-robinhood')}
-• 💎 NFT ETH (\`nft-eth\`): ${getStatus('nft-eth')}
-• 🔵 NFT Base (\`nft-base\`): ${getStatus('nft-base')}
-• 🐙 NFT Ink (\`nft-ink\`): ${getStatus('nft-ink')}
-• 👑 NFT Robinhood (\`nft-robinhood\`): ${getStatus('nft-robinhood')}
-• ⚡ NFT HyperEVM (\`nft-hyperevm\`): ${getStatus('nft-hyperevm')}
-• 🐋 Whale Tracking (\`perps\`): ${getStatus('perps')}
-• 🎯 Polymarket (\`prediction\`): ${getStatus('prediction')}
+• 🟡 BSC Meme (\`meme-bsc\`): ${getStatus('meme-bsc')}
 • 💡 Smart CT Alpha (\`ct-alpha\`): ${getStatus('ct-alpha')}
 
 Use buttons below to toggle agents, view wallet status, or execute withdrawals:`;
@@ -283,17 +262,7 @@ Use buttons below to toggle agents, view wallet status, or execute withdrawals:`
         ],
         [
           { text: '▶️ ETH Meme', callback_data: 'toggle_meme-eth' },
-          { text: '▶️ Ink Meme', callback_data: 'toggle_meme-ink' },
-          { text: '▶️ SOL LP', callback_data: 'toggle_lp-solana' },
-        ],
-        [
-          { text: '▶️ RH LP', callback_data: 'toggle_lp-robinhood' },
-          { text: '▶️ Whale Perps', callback_data: 'toggle_perps' },
-          { text: '▶️ Polymarket', callback_data: 'toggle_prediction' },
-        ],
-        [
-          { text: '▶️ NFT ETH', callback_data: 'toggle_nft-eth' },
-          { text: '▶️ NFT Base', callback_data: 'toggle_nft-base' },
+          { text: '▶️ BSC Meme', callback_data: 'toggle_meme-bsc' },
           { text: '▶️ CT Alpha', callback_data: 'toggle_ct-alpha' },
         ],
         [
@@ -356,11 +325,11 @@ Use buttons below to toggle agents, view wallet status, or execute withdrawals:`
         hub.toggleChannelScreening('telegram-forum', domain, !active);
         await this.sendMessage(`⚡ Sub-agent domain \`${domain}\` is now **${!active ? 'ACTIVE' : 'PAUSED'}** on Telegram!`, 'Markdown', undefined, threadId);
       } else if (data === 'start_all') {
-        ['meme-solana', 'meme-robinhood', 'meme-base', 'meme-eth', 'meme-ink', 'lp-solana', 'lp-robinhood', 'nft-eth', 'nft-base', 'nft-ink', 'nft-robinhood', 'nft-hyperevm', 'perps', 'prediction', 'ct-alpha'].forEach(d => hub.toggleChannelScreening('telegram-forum', d, true));
-        await this.sendMessage('⚡ **GLOBAL MASTER SCREENING ACTIVATED!** All 15 Sub-Agents are active on Telegram.', 'Markdown', undefined, threadId);
+        ['meme-solana', 'meme-robinhood', 'meme-base', 'meme-eth', 'meme-bsc', 'ct-alpha'].forEach(d => hub.toggleChannelScreening('telegram-forum', d, true));
+        await this.sendMessage('⚡ **GLOBAL MASTER SCREENING ACTIVATED!** All 6 active scouts are running on Telegram.', 'Markdown', undefined, threadId);
       } else if (data === 'pause_all') {
-        ['meme-solana', 'meme-robinhood', 'meme-base', 'meme-eth', 'meme-ink', 'lp-solana', 'lp-robinhood', 'nft-eth', 'nft-base', 'nft-ink', 'nft-robinhood', 'nft-hyperevm', 'perps', 'prediction', 'ct-alpha'].forEach(d => hub.toggleChannelScreening('telegram-forum', d, false));
-        await this.sendMessage('⏸️ **GLOBAL MASTER SCREENING PAUSED!** All 15 Sub-Agents are paused on Telegram.', 'Markdown', undefined, threadId);
+        ['meme-solana', 'meme-robinhood', 'meme-base', 'meme-eth', 'meme-bsc', 'ct-alpha'].forEach(d => hub.toggleChannelScreening('telegram-forum', d, false));
+        await this.sendMessage('⏸️ **GLOBAL MASTER SCREENING PAUSED!** All active scouts are paused on Telegram.', 'Markdown', undefined, threadId);
       } else if (data === 'balances') {
         const isDryRun = isDryRunMode();
         const hasSol = walletService.hasWallet('solana');

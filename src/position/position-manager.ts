@@ -4,6 +4,8 @@ export interface OpenPosition {
   id: string;
   symbol: string;
   contractAddress: string;
+  /** Optional owning chain if the caller knows it; otherwise inferred from address shape. */
+  chain?: 'sol' | 'robinhood' | 'base' | 'eth' | 'bsc' | 'ink';
   entryPriceUsd: number;
   currentPriceUsd: number;
   amount: number;
@@ -84,9 +86,43 @@ export class PositionManager {
     return Array.from(this.activePositions.values());
   }
 
+  public getPosition(id: string): OpenPosition | undefined {
+    return this.activePositions.get(id);
+  }
+
   public removePosition(id: string): void {
     this.activePositions.delete(id);
     this.stateStore?.removePosition(id);
+  }
+
+  /**
+   * Persist a TP milestone flag so the exit manager does not re-emit the same
+   * scale-out trigger every pass.
+   */
+  public markTpTriggered(positionId: string, which: 'tp100Triggered' | 'tp200Triggered'): void {
+    const pos = this.activePositions.get(positionId);
+    if (!pos) return;
+    pos[which] = true;
+    this.stateStore?.setPosition(pos);
+  }
+
+  /**
+   * Reduce a position's held amount after a partial exit. Returns the updated
+   * position, or undefined when the position no longer exists.
+   */
+  public scalePositionAmount(
+    positionId: string,
+    factor: number,
+    currentPriceUsd?: number
+  ): OpenPosition | undefined {
+    const pos = this.activePositions.get(positionId);
+    if (!pos || !Number.isFinite(factor) || factor <= 0) return undefined;
+    pos.amount = pos.amount * factor;
+    if (currentPriceUsd !== undefined && currentPriceUsd > 0) {
+      pos.currentPriceUsd = currentPriceUsd;
+    }
+    this.stateStore?.setPosition(pos);
+    return pos;
   }
 
   public updateMemePosition(

@@ -75,7 +75,7 @@ export async function handleControlRoomMessage(
   // 0a. Sub-agent PAUSE / STOP intent
   if (lowerQuery.includes('pause') || lowerQuery.includes('stop') || lowerQuery.includes('matikan') || lowerQuery.includes('hentikan')) {
     if (lowerQuery.includes('agent') || lowerQuery.includes('sub agent') || lowerQuery.includes('screening')) {
-      const agentDomains = ['solana-meme', 'evm-meme', 'solana', 'evm', 'perps', 'nft', 'prediction', 'ct-alpha', 'lp-solana', 'lp-robinhood', 'all'];
+      const agentDomains = ['meme-solana', 'meme-robinhood', 'meme-base', 'meme-eth', 'meme-bsc', 'ct-alpha', 'all'];
       const foundDomain = agentDomains.find(d => lowerQuery.includes(d)) || 'all';
       const result = await toolRegistry.executeToolCall('pause_sub_agent', { agentId: foundDomain });
       await message.reply(`🔴 **OPENCATZ CONTROL CENTER**: ${result.message}\n\nSub-agent status updated in Hub Orchestrator state.`);
@@ -86,7 +86,7 @@ export async function handleControlRoomMessage(
   // 0b. Sub-agent RESUME / START intent
   if (lowerQuery.includes('resume') || lowerQuery.includes('start') || lowerQuery.includes('nyalakan') || lowerQuery.includes('aktifkan')) {
     if (lowerQuery.includes('agent') || lowerQuery.includes('sub agent') || lowerQuery.includes('screening')) {
-      const agentDomains = ['solana-meme', 'evm-meme', 'solana', 'evm', 'perps', 'nft', 'prediction', 'ct-alpha', 'lp-solana', 'lp-robinhood', 'all'];
+      const agentDomains = ['meme-solana', 'meme-robinhood', 'meme-base', 'meme-eth', 'meme-bsc', 'ct-alpha', 'all'];
       const foundDomain = agentDomains.find(d => lowerQuery.includes(d)) || 'all';
       const result = await toolRegistry.executeToolCall('resume_sub_agent', { agentId: foundDomain });
       await message.reply(`🟢 **OPENCATZ CONTROL CENTER**: ${result.message}\n\nSub-agent status updated in Hub Orchestrator state.`);
@@ -96,7 +96,7 @@ export async function handleControlRoomMessage(
 
   // 0c. Trigger ON-DEMAND Screening Pass intent
   if (lowerQuery.includes('jalankan screening') || lowerQuery.includes('run screening') || lowerQuery.includes('trigger screening')) {
-    const agentDomains = ['solana-meme', 'evm-meme', 'solana', 'evm', 'perps', 'nft', 'prediction', 'ct-alpha', 'lp-solana', 'lp-robinhood'];
+    const agentDomains = ['meme-solana', 'meme-robinhood', 'meme-base', 'meme-eth', 'meme-bsc', 'ct-alpha'];
     const foundDomain = agentDomains.find(d => lowerQuery.includes(d)) || 'solana-meme';
     await message.reply(`⚡ **OPENCATZ ON-DEMAND SCREENING TRIGGERED** for \`${foundDomain.toUpperCase()}\`...\nScreening pass in progress.`);
     const result = await toolRegistry.executeToolCall('trigger_screening_pass', { agentId: foundDomain });
@@ -130,7 +130,7 @@ export async function handleControlRoomMessage(
   // 0f. Natural Language Schedule Automation intent
   if (lowerQuery.includes('setiap') || lowerQuery.includes('every') || lowerQuery.includes('schedule')) {
     if (lowerQuery.includes('jam') || lowerQuery.includes('hour') || lowerQuery.includes('menit') || lowerQuery.includes('min')) {
-      const agentDomains = ['solana-meme', 'evm-meme', 'solana', 'evm', 'perps', 'nft', 'prediction', 'ct-alpha', 'lp-solana', 'lp-robinhood'];
+      const agentDomains = ['meme-solana', 'meme-robinhood', 'meme-base', 'meme-eth', 'meme-bsc', 'ct-alpha'];
       const foundDomain = agentDomains.find(d => lowerQuery.includes(d)) || 'solana-meme';
       const result = await toolRegistry.executeToolCall('schedule_automation', {
         interval: userQuery,
@@ -355,8 +355,6 @@ export async function handleControlRoomMessage(
 
   const simSol = process.env.SIMULATION_BALANCE_SOL || '10.0';
   const simEth = process.env.SIMULATION_BALANCE_ETH || '1.0';
-  const simPoly = process.env.SIMULATION_BALANCE_POLYMARKET || '500.0';
-  const simHl = process.env.SIMULATION_BALANCE_HYPERLIQUID || '1000.0';
   const autoExecuteEnabled = process.env.AUTO_EXECUTE_ENABLED === 'true';
 
   // Shared OpenCatz system prompt (persona + architecture) + live operating params
@@ -376,8 +374,6 @@ ${activeAgentsLine}
 - Referenced Wallet Balances (for tracking user positions, not for execution):
   • Solana: ${simSol} SOL
   • EVM: ${simEth} ETH (Base / Robinhood)
-  • Polymarket: $${simPoly} USDC
-  • Hyperliquid Perps: $${simHl} USDC
 - Global Portfolio Drawdown Limit: ${risk.maxDrawdownLimitPct}%
 - Current Portfolio Drawdown: ${risk.currentDrawdownPct ?? 0}%${memoryContext}`;
 
@@ -422,7 +418,7 @@ ${activeAgentsLine}
         `• **Active API Key Hint:** \`${keyHint}\`\n` +
         `• **Error Detail:** ⚠️ \`${error.message || 'Unknown Error'}\`\n\n` +
         `💡 **Fix:** Run \`opencatz onboard\` on the VPS to refresh your API keys.\n\n` +
-        `🛡️ **Local Autonomous System:** 95% of OpenCatz's local engine (7 Sub-Agents, GoPlus/RugCheck audits, Swarm Consensus, \`/swap\`, \`/bridge\`, \`/alert\`) keeps operating 100% smoothly!`
+        `🛡️ **Local Autonomous System:** Meme scouts, GoPlus/RugCheck audits, Swarm Consensus, \`/swap\`, \`/bridge\`, and \`/alert\` remain available.`
       );
       return;
     }

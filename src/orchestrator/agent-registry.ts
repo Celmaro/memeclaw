@@ -3,19 +3,10 @@ export type AgentDomainId =
   | 'meme-robinhood'
   | 'meme-base'
   | 'meme-eth'
-  | 'meme-ink'
-  | 'lp-solana'
-  | 'lp-robinhood'
-  | 'nft-eth'
-  | 'nft-base'
-  | 'nft-ink'
-  | 'nft-robinhood'
-  | 'nft-hyperevm'
-  | 'perps'
-  | 'prediction'
+  | 'meme-bsc'
   | 'ct-alpha';
 
-export type AgentCategory = 'MEME' | 'LP' | 'PERPS' | 'NFT' | 'PREDICTION' | 'CT_ALPHA';
+export type AgentCategory = 'MEME' | 'CT_ALPHA';
 
 export interface AgentDomainInfo {
   id: AgentDomainId;
@@ -56,6 +47,15 @@ export const AGENT_DOMAINS: AgentDomainInfo[] = [
     category: 'MEME',
   },
   {
+    id: 'meme-bsc',
+    displayName: 'MEME-BSC',
+    name: 'BNB Chain Meme Screening',
+    channel: 'call-meme-bsc',
+    aliases: ['bsc', 'bnb', 'bnb-chain', 'bsc-meme', 'call-meme-bsc'],
+    requiredKeys: ['AI_API_KEY'],
+    category: 'MEME',
+  },
+  {
     id: 'meme-eth',
     displayName: 'MEME-ETH',
     name: 'Ethereum Mainnet Meme Screening',
@@ -63,96 +63,6 @@ export const AGENT_DOMAINS: AgentDomainInfo[] = [
     aliases: ['eth', 'ethereum', 'eth-meme', 'call-meme-ethereum'],
     requiredKeys: ['AI_API_KEY'],
     category: 'MEME',
-  },
-  {
-    id: 'meme-ink',
-    displayName: 'MEME-INK',
-    name: 'Ink Chain (Kraken L2) Meme Screening',
-    channel: 'call-meme-ink',
-    aliases: ['ink', 'ink-chain', 'ink-meme', 'kraken-ink', 'call-meme-ink'],
-    requiredKeys: ['AI_API_KEY'],
-    category: 'MEME',
-  },
-  {
-    id: 'lp-solana',
-    displayName: 'LP-SOLANA',
-    name: 'Solana Concentrated Liquidity Velocity (Meteora)',
-    channel: 'call-lp-solana',
-    aliases: ['meteora', 'solana-lp'],
-    requiredKeys: ['AI_API_KEY'],
-    category: 'LP',
-  },
-  {
-    id: 'lp-robinhood',
-    displayName: 'LP-ROBINHOOD',
-    name: 'Robinhood Chain Concentrated Liquidity Velocity (Uniswap)',
-    channel: 'call-lp-robinhood',
-    aliases: ['uniswap', 'evm-lp', 'lp-evm'],
-    requiredKeys: ['AI_API_KEY'],
-    category: 'LP',
-  },
-  {
-    id: 'nft-eth',
-    displayName: 'NFT-ETH',
-    name: '💎 Ethereum Bluechip & Floor Surge Sniper (OpenSea)',
-    channel: 'call-nft-eth',
-    aliases: ['nft', 'nft-ethereum', 'opensea', 'nft-sniper', 'call-nft-eth', 'call-nft-sniping'],
-    requiredKeys: ['OPENSEA_API_KEY', 'AI_API_KEY'],
-    category: 'NFT',
-  },
-  {
-    id: 'nft-base',
-    displayName: 'NFT-BASE',
-    name: '🔵 Base L2 Creator Drops & Trending Mints',
-    channel: 'call-nft-base',
-    aliases: ['base-nft', 'zora-nft', 'call-nft-base'],
-    requiredKeys: ['OPENSEA_API_KEY', 'AI_API_KEY'],
-    category: 'NFT',
-  },
-  {
-    id: 'nft-ink',
-    displayName: 'NFT-INK',
-    name: '🐙 Ink Chain (Kraken L2) NFT Radar & Trending Mints',
-    channel: 'call-nft-ink',
-    aliases: ['ink-nft', 'kraken-nft', 'call-nft-ink'],
-    requiredKeys: ['OPENSEA_API_KEY', 'AI_API_KEY'],
-    category: 'NFT',
-  },
-  {
-    id: 'nft-robinhood',
-    displayName: 'NFT-ROBINHOOD',
-    name: '👑 Robinhood Chain NFT Radar (OpenSea)',
-    channel: 'call-nft-robinhood',
-    aliases: ['rh-nft', 'robinhood-nft', 'call-nft-robinhood'],
-    requiredKeys: ['OPENSEA_API_KEY', 'AI_API_KEY'],
-    category: 'NFT',
-  },
-  {
-    id: 'nft-hyperevm',
-    displayName: 'NFT-HYPEREVM',
-    name: '⚡ Hyperliquid HyperEVM L1 NFT Radar',
-    channel: 'call-nft-hyperevm',
-    aliases: ['hyper-nft', 'hyperevm-nft', 'hyperliquid-nft', 'call-nft-hyperevm'],
-    requiredKeys: ['OPENSEA_API_KEY', 'AI_API_KEY'],
-    category: 'NFT',
-  },
-  {
-    id: 'perps',
-    displayName: 'WHALE-TRACKING',
-    name: 'Smart Trader & Whale Positioning Tracking (Hyperliquid)',
-    channel: 'call-whale-tracking',
-    aliases: ['perpetual', 'hyperliquid', 'perps-futures', 'futures', 'whale', 'smartmoney', 'smart-money'],
-    requiredKeys: ['AI_API_KEY'],
-    category: 'PERPS',
-  },
-  {
-    id: 'prediction',
-    displayName: 'PREDICTION-MARKETS',
-    name: 'Polymarket Prediction Market Arbitrage',
-    channel: 'call-prediction-markets',
-    aliases: ['polymarket', 'poly', 'prediction-market'],
-    requiredKeys: ['AI_API_KEY'],
-    category: 'PREDICTION',
   },
   {
     id: 'ct-alpha',
@@ -163,6 +73,8 @@ export const AGENT_DOMAINS: AgentDomainInfo[] = [
     requiredKeys: ['TWEX_API_KEY', 'AI_API_KEY'],
     category: 'CT_ALPHA',
   },
+  // LP, NFT, perps and prediction divisions are intentionally not registered.
+  // Their legacy modules remain on disk for reference, but cannot be started by the bot.
 ];
 
 function canonicalize(input: string): string {

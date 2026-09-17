@@ -32,16 +32,16 @@ export class MarketRegimeFilter {
 
     if (volatilityIdx >= 80) {
       regime = 'EXTREME_VOLATILITY';
-      recommendedAction = '⚠️ Extreme volatility: Reduce position sizing by 50% and widen LP tick ranges.';
+      recommendedAction = '⚠️ Extreme volatility: Reduce position sizing by 50% and require stronger token-risk confirmation.';
     } else if (btc24h > 3.0 && eth24h > 3.0) {
       regime = 'TRENDING_BULL';
-      recommendedAction = '🟢 Strong bullish momentum: Spot meme and trend-following perps active.';
+      recommendedAction = '🟢 Strong bullish momentum: Spot meme screening is active with normal sizing.';
     } else if (btc24h < -3.0 && eth24h < -3.0) {
       regime = 'TRENDING_BEAR';
-      recommendedAction = '🔴 Bearish trend: Tighten stop-losses and prioritize perps short setups.';
+      recommendedAction = '🔴 Bearish trend: Tighten stop-losses and prioritize only high-conviction meme setups.';
     } else {
       regime = 'SIDEWAYS_CHOP';
-      recommendedAction = '🟡 Sideways chop: Pause trend-following leverage perps; favor LP range strategies.';
+      recommendedAction = '🟡 Sideways chop: Reduce frequency and wait for stronger meme momentum.';
     }
 
     this.currentRegime = {

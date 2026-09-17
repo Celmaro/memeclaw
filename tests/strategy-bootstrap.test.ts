@@ -69,5 +69,5 @@ describe('strategy-bootstrap', () => {
 
     expect(res.generated).toContain('meme-solana-custom');
     expect(res.failed).toHaveLength(0);
-  });
+  }, 15000);
 });

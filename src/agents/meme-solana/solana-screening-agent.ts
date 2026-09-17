@@ -2,7 +2,7 @@ import { GMGNAdapter, GMGNRawToken } from '../../adapters/gmgn-adapter.js';
 import { globalPriceFeedService } from '../../services/price-feed-service.js';
 import { StrategyEngine } from '../../orchestrator/strategy-engine.js';
 import type { ScreeningAgent, AgentReport, CallCardPayload } from '../shared/agent-contract.js';
-import { createDedupe, preFilterToken, detectMemeSignal, volume24hOf, buildSignalBoostMap, applySignalBoost, toStrategyGmgn, buildMemeThesis, isGraduatedToken, validateMemeConfigUpdate, securityAuditGate, buildTrackAccumulation, trackAccumulationLabel } from '../shared/gmgn-meme-helpers.js';
+import { createDedupe, preFilterToken, detectMemeSignal, volume24hOf, buildSignalBoostMap, applySignalBoost, toStrategyGmgn, buildMemeThesis, isGraduatedToken, validateMemeConfigUpdate, securityAuditGate, buildTrackAccumulation, trackAccumulationLabel, buildLaunchEvidence, buildGatebookEvidence } from '../shared/gmgn-meme-helpers.js';
 import type { SignalBoostMap, TrackAccumulation } from '../shared/gmgn-meme-helpers.js';
 
 export interface SolanaSignal {
@@ -244,6 +244,8 @@ export class SolanaScreeningAgent implements ScreeningAgent<SolanaSignal> {
       socialHypeScore: confidence,
       liquidityUsd: t.liquidityUsd,
       volume1hUsd: t.volume1hUsd > 0 ? t.volume1hUsd : volume24hOf(t) / 24,
+      launchEvidence: buildLaunchEvidence(t),
+      gatebookEvidence: buildGatebookEvidence(t),
     };
   }
 

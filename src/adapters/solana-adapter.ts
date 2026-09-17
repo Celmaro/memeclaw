@@ -31,6 +31,13 @@ export interface SolanaSwapRequest {
   slippageBps?: number; // Default 150 (1.5%)
 }
 
+export interface SolanaSellRequest {
+  inputMint: string;    // Token CA to sell
+  amountTokens: number; // Token amount to sell. Raw base units unless `decimals` is provided.
+  decimals?: number;    // When set, `amountTokens` is interpreted as UI amount and converted to base units.
+  slippageBps?: number; // Default 150 (1.5%)
+}
+
 const SOL_NATIVE_MINT = 'So11111111111111111111111111111111111111112';
 
 export class SolanaTradeAdapter {
@@ -318,5 +325,28 @@ export class SolanaTradeAdapter {
         error: errMsg,
       };
     }
+  }
+
+  /**
+   * Sell a token for SOL through the same Jupiter swap path as `swapToken`.
+   * Dry-run quotes the real Jupiter API but never broadcasts; live mode still
+   * requires the MEV guard + wallet service to pass before sending a transaction.
+   */
+  public async executeSellToken(request: SolanaSellRequest, walletService?: WalletService): Promise<SolanaTradeResult> {
+    const baseUnits =
+      request.decimals !== undefined && Number.isFinite(request.decimals) && request.decimals >= 0
+        ? Math.round(request.amountTokens * Math.pow(10, Math.floor(request.decimals)))
+        : request.amountTokens;
+    return this.swapToken(
+      {
+        inputMint: request.inputMint,
+        outputMint: SOL_NATIVE_MINT,
+        // swapToken multiplies the "amountSol" by 1e9 to build lamports/base units.
+        // Passing raw base units / 1e9 cancels that and quotes the true token units.
+        amountSol: baseUnits / 1e9,
+        slippageBps: request.slippageBps,
+      },
+      walletService
+    );
   }
 }

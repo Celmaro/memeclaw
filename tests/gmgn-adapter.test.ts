@@ -28,6 +28,28 @@ describe('GMGNAdapter (OpenAPI)', () => {
     expect(totalMs).toBeGreaterThanOrEqual(400);
   }, 15000);
 
+  it('records source health after successful and failed GMGN requests', async () => {
+    process.env.GMGN_API_KEY = 'test-key';
+    process.env.GMGN_REQUEST_SPACING_MS = '1';
+    const okRes = { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ code: 0, data: { data: { rank: [] } } }) };
+    const failRes = { ok: false, status: 500, headers: { get: () => null }, json: async () => ({}) };
+    const fn = vi.fn()
+      .mockResolvedValueOnce(okRes)
+      .mockResolvedValueOnce(failRes)
+      .mockResolvedValueOnce(failRes);
+    vi.stubGlobal('fetch', fn);
+
+    const adapter = new GMGNAdapter();
+    await adapter.fetchRank('sol');
+    expect(adapter.getSourceHealth().lastSeenAt).not.toBeNull();
+    expect(adapter.getSourceHealth().consecutiveErrors).toBe(0);
+
+    await adapter.fetchRank('sol');
+    await adapter.fetchRank('sol');
+    expect(adapter.getSourceHealth().consecutiveErrors).toBe(2);
+    expect(adapter.getSourceHealth().lastError).toContain('500');
+  });
+
   it('parses /v1/market/rank response with real GMGN fields', async () => {
     process.env.GMGN_API_KEY = 'test-key';
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({

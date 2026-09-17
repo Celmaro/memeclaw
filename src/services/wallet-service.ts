@@ -242,39 +242,6 @@ export class WalletService {
     });
   }
 
-  /** Get Hyperliquid Perps USDC balance (real via info API; simulated only when DRY_RUN) */
-  public async getHyperliquidBalance(): Promise<BalanceResult | null> {
-    const isDryRun = isDryRunMode();
-    const simHl = parseFloat(process.env.SIMULATION_BALANCE_HYPERLIQUID || '1000.0');
-    if (isDryRun) {
-      return { balance: simHl, symbol: 'USDC', chain: 'Hyperliquid Perps', simulated: true };
-    }
-    let address: string;
-    try {
-      address = this.getEvmAddress();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.warn(`[WALLET] Hyperliquid balance unavailable (no EVM wallet): ${message}`);
-      return null;
-    }
-    try {
-      const res = await fetch('https://api.hyperliquid.xyz/info', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'clearinghouseState', user: address }),
-      });
-      if (!res.ok) return null;
-      const data = (await res.json()) as { marginSummary?: { accountValue?: string } };
-      const value = Number(data.marginSummary?.accountValue);
-      if (!(value > 0)) return null;
-      return { balance: value, symbol: 'USDC', chain: 'Hyperliquid Perps', simulated: false };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.warn(`[WALLET] Hyperliquid balance query failed: ${message}`);
-      return null;
-    }
-  }
-
   /** Get EVM native balance (ETH/BNB/MATIC); fail-closed on live RPC failure */
   public async getEvmBalance(chainId: number): Promise<BalanceResult | null> {
     const chainConfig = EVM_CHAINS[chainId];

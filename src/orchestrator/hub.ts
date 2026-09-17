@@ -1,13 +1,7 @@
-import { RiskManager } from './risk-manager.js';
-import { globalRiskEngineV2 } from './risk-engine-v2.js';
+import { RiskEngine, globalRiskEngine } from './risk-engine.js';
 import { AGENT_DOMAINS, getAgentDomain, normalizeDomainKey as registryNormalizeDomain } from './agent-registry.js';
 import type { AgentDomainId } from './agent-registry.js';
 import type { AgentReport, ScreeningAgent } from '../agents/shared/agent-contract.js';
-import type { MeteoraDLMMAdapter } from '../adapters/meteora-dlmm-adapter.js';
-import type { KrystalCloudAdapter } from '../adapters/krystal-cloud-adapter.js';
-import type { GMGNAdapter } from '../adapters/gmgn-adapter.js';
-import { securityGateToken, tokenSecurityLabel, securityAuditGate, tokenSecurityAuditLabel } from '../agents/shared/gmgn-meme-helpers.js';
-import { buildLPPayload } from './dispatch.js';
 
 export interface ChannelStatus {
   channelId: string;
@@ -19,41 +13,27 @@ export interface ChannelStatus {
 export interface OpenCatzHubOptions {
   /** Optional per-domain agent factories (test DI / custom wiring). Lazy-imports real agents by default. */
   agentFactories?: Partial<Record<AgentDomainId, () => ScreeningAgent | Promise<ScreeningAgent>>>;
-  meteoraAdapter?: MeteoraDLMMAdapter;
-  krystalAdapter?: KrystalCloudAdapter;
-  gmgnAdapter?: GMGNAdapter;
 }
 
 export class OpenCatzHub {
-  private riskManager: RiskManager;
+  private riskManager: RiskEngine;
   private channelStates: Map<string, ChannelStatus> = new Map();
   private agentStates: Map<string, boolean> = new Map();
   private autoExecuteStates: Map<string, { enabled: boolean; maxTradeAmount: number }> = new Map();
 
   private agentFactories: Partial<Record<AgentDomainId, () => ScreeningAgent | Promise<ScreeningAgent>>>;
-  private meteoraAdapter?: MeteoraDLMMAdapter;
-  private krystalAdapter?: KrystalCloudAdapter;
-  private gmgnAdapter?: GMGNAdapter;
 
   private stateStore?: any;
 
   constructor(options: OpenCatzHubOptions = {}) {
-    this.riskManager = new RiskManager();
+    this.riskManager = new RiskEngine();
     this.agentFactories = options.agentFactories ?? {};
-    this.meteoraAdapter = options.meteoraAdapter;
-    this.krystalAdapter = options.krystalAdapter;
-    this.gmgnAdapter = options.gmgnAdapter;
     this.initializeAgentStatesDefaultActive();
   }
 
   /** Late wiring seam for composition roots (index.ts): share singleton agents with on-demand passes. */
   public attachAgentFactories(factories: Partial<Record<AgentDomainId, () => ScreeningAgent | Promise<ScreeningAgent>>>): void {
     this.agentFactories = { ...this.agentFactories, ...factories };
-  }
-
-  /** Late wiring seam for the Meteora LP adapter (composition root). */
-  public attachAdapters(deps: { meteoraAdapter?: MeteoraDLMMAdapter }): void {
-    this.meteoraAdapter = deps.meteoraAdapter ?? this.meteoraAdapter;
   }
 
   public attachStateStore(store: any): void {
@@ -129,7 +109,7 @@ export class OpenCatzHub {
     return active;
   }
 
-  public getRiskManager(): RiskManager {
+  public getRiskManager(): RiskEngine {
     return this.riskManager;
   }
 
@@ -171,9 +151,6 @@ export class OpenCatzHub {
         const agent = await factory();
         return await agent.runScreeningPass();
       }
-      if (info.category === 'LP') {
-        return await this.runLPPass(info.id);
-      }
       const agent = await this.resolveAgent(info.id);
       return await agent.runScreeningPass();
     } catch (err: any) {
@@ -183,11 +160,6 @@ export class OpenCatzHub {
     return [];
   }
 
-  /**
-   * Resolve the LIVE agent instance for a domain (the same singleton the 5-min
-   * loop uses) — or null when no factory is wired (LP domains / fresh resolve).
-   * Used by the chat tool `set_screening_config` to update runtime thresholds.
-   */
   public async getScreeningAgent(domain: string): Promise<ScreeningAgent | null> {
     const info = getAgentDomain(domain);
     if (!info) return null;
@@ -214,235 +186,17 @@ export class OpenCatzHub {
         const { EthScreeningAgent } = await import('../agents/meme-eth/eth-screening-agent.js');
         return new EthScreeningAgent();
       }
-      case 'meme-ink': {
-        const { InkScreeningAgent } = await import('../agents/meme-ink/ink-screening-agent.js');
-        return new InkScreeningAgent();
-      }
-      case 'lp-solana': {
-        const { LPSolanaAgent } = await import('../agents/lp-solana/lp-solana-agent.js');
-        return new LPSolanaAgent();
-      }
-      case 'lp-robinhood': {
-        const { LPRobinhoodAgent } = await import('../agents/lp-robinhood/lp-robinhood-agent.js');
-        return new LPRobinhoodAgent();
-      }
-      case 'nft-eth': {
-        const { NFTEthAgent } = await import('../agents/nft-eth/nft-eth-agent.js');
-        return new NFTEthAgent();
-      }
-      case 'nft-base': {
-        const { NFTBaseAgent } = await import('../agents/nft-base/nft-base-agent.js');
-        return new NFTBaseAgent();
-      }
-      case 'nft-ink': {
-        const { NFTInkAgent } = await import('../agents/nft-ink/nft-ink-agent.js');
-        return new NFTInkAgent();
-      }
-      case 'nft-robinhood': {
-        const { NFTRobinhoodAgent } = await import('../agents/nft-robinhood/nft-robinhood-agent.js');
-        return new NFTRobinhoodAgent();
-      }
-      case 'nft-hyperevm': {
-        const { NFTHyperEVMAgent } = await import('../agents/nft-hyperevm/nft-hyperevm-agent.js');
-        return new NFTHyperEVMAgent();
-      }
-      case 'prediction': {
-        const { PolymarketAgent } = await import('../agents/prediction/polymarket-agent.js');
-        return new PolymarketAgent(undefined, { emitCalls: true });
+      case 'meme-bsc': {
+        const { BscScreeningAgent } = await import('../agents/meme-bsc/bsc-screening-agent.js');
+        return new BscScreeningAgent();
       }
       case 'ct-alpha': {
         const { CTAlphaAgent } = await import('../agents/ct-alpha/ct-alpha-agent.js');
         return new CTAlphaAgent(undefined, { emitCalls: true });
       }
-      case 'perps': {
-        const { PerpsScreeningAgent } = await import('../agents/perps/perps-screening-agent.js');
-        const { HyperliquidAdapter } = await import('../adapters/hyperliquid-adapter.js');
-        return new PerpsScreeningAgent(new HyperliquidAdapter());
-      }
       default:
         throw new Error(`No agent factory registered for domain "${id}"`);
     }
-  }
-
-  /**
-   * LP domains.
-   * - lp-solana: adapter-flow Meteora DLMM (official data API).
-   * - lp-robinhood: Robinhood Chain has no reliable public pool indexer
-   *   (subgraph unsupported, Uniswap Data API requires special access) —
-   *   reuse the GMGN meme-robinhood screening (graduated-only + GoPlus) then
-   *   apply an LP filter based on GMGN data (liquidity, 0.3% Uniswap v3 fee
-   *   yield estimate, velocity) so the calls are LP-specific,
-   *   not meme duplicates. CA is surfaced on the card; users look up the pool on Uniswap.
-   */
-  public async runLPPass(id: AgentDomainId): Promise<AgentReport[]> {
-    if (id === 'lp-solana') {
-      const { MeteoraDLMMAdapter } = await import('../adapters/meteora-dlmm-adapter.js');
-      const { GMGNAdapter } = await import('../adapters/gmgn-adapter.js');
-      const adapter = this.meteoraAdapter ?? new MeteoraDLMMAdapter();
-      const high = adapter.filterHighYieldPools(await adapter.fetchTopYieldPools());
-      // Enrich the meme token (tokenX) with GMGN: the Meteora DLMM API does not expose
-      // smart money/KOL/CTO — fetch it from GMGN token/info. The token security gate
-      // (honeypot/tax/rug/insider/bundler/top-10) + GMGN /token/security audit
-      // are used as a FILTER — FAIL-CLOSED: token not found / audit
-      // unavailable = pool rejected.
-      const gmgn = this.gmgnAdapter ?? new GMGNAdapter();
-      const enriched = new Map<string, any>();
-      const results: AgentReport[] = [];
-      for (const p of high) {
-        if (p.tokenXAddress && !enriched.has(p.tokenXAddress)) {
-          try {
-            const info = await gmgn.fetchTokenInfo('sol', p.tokenXAddress);
-            enriched.set(p.tokenXAddress, info);
-          } catch { enriched.set(p.tokenXAddress, null); }
-        }
-        const info = enriched.get(p.tokenXAddress) ?? null;
-        // FAIL-CLOSED: token not found in GMGN → audit cannot be verified.
-        if (!info) {
-          console.log(`[LP SOLANA] ⛔ Pool rejected: ${p.pairName} — token not found in GMGN (audit cannot be verified).`);
-          continue;
-        }
-        // LP: tax gate disabled (LP tokens often have small taxes) — other gates remain.
-        const sec = securityGateToken(info, { enableTaxGate: false });
-        if (!sec.ok) {
-          console.log(`[LP SOLANA] ⛔ Pool rejected: ${p.pairName} — ${sec.reasons.join(' ')}`);
-          continue;
-        }
-        // Per-token security audit (honeypot/blacklist/sell-lock) — fail-closed.
-        const audit = await gmgn.fetchTokenSecurity('sol', p.tokenXAddress);
-        const secAudit = securityAuditGate(audit, { enableTaxGate: false });
-        if (!secAudit.ok) {
-          console.log(`[LP SOLANA] ⛔ Pool rejected: ${p.pairName} — AUDIT FAIL: ${secAudit.reasons.join(' ')}`);
-          continue;
-        }
-        const payload = buildLPPayload(p);
-        payload.token0PriceUsd = info.priceUsd || payload.token0PriceUsd;
-        payload.token0MarketCapUsd = info.marketCapUsd || payload.token0MarketCapUsd;
-        payload.token0Volume24hUsd = info.volume24hUsd || payload.token0Volume24hUsd;
-        payload.token0Holders = info.holderCount || payload.token0Holders;
-        payload.token0AgeHours = info.creationTimestamp ? (Date.now() / 1000 - info.creationTimestamp) / 3600 : payload.token0AgeHours;
-        const smart = (info.smartDegenCount ?? 0) + (info.renownedCount ?? 0);
-        if (smart > 0) payload.token0SmartDegenCount = smart;
-        payload.gmgnUrl = `https://gmgn.ai/sol/token/${p.tokenXAddress}`;
-        payload.securityAuditPassed = true;
-        payload.securityScore = tokenSecurityAuditLabel(audit);
-        results.push({
-          passed: true,
-          signal: p,
-          reason: p.aiRecommendation,
-          confidence: 80,
-          payload,
-        });
-      }
-      return results;
-    }
-    // lp-robinhood: Krystal Cloud Data API (a reliable robinhood chain pool
-    // indexer — subgraph unsupported, Uniswap Data API requires special access).
-    // REAL data: tvl, volume/fee/APR per 1h-24h, farm incentives. Filter
-    // mirrors LP solana (Meteora): fee1h>=7, 24h Fee/TVL>1%, velocity>=100%,
-    // tvl>=10k, dedupe per pair. Both token CAs + chart links are surfaced;
-    // meme token details (price/MC/volume/holder/age/smart money) are enriched
-    // from GMGN token/info — the meme token is the one that is NOT a base
-    // asset (WETH/USDC/…), fail-open.
-    const { KrystalCloudAdapter } = await import('../adapters/krystal-cloud-adapter.js');
-    const { GMGNAdapter } = await import('../adapters/gmgn-adapter.js');
-    const krystal = this.krystalAdapter ?? new KrystalCloudAdapter();
-    const high = krystal.filterHighYieldPools(await krystal.fetchTopRobinhoodPools());
-    // Enrich using the GMGN robinhood key (per-key rate limit) — falls back to GMGN_API_KEY.
-    // Meme token security gate (honeypot/tax/rug/insider/bundler/top-10) = FILTER:
-    // a dangerous token rejects its pool (fail-open when not found in GMGN).
-    const gmgn = this.gmgnAdapter ?? new GMGNAdapter(process.env.GMGN_API_KEY_ROBINHOOD || process.env.GMGN_API_KEY);
-    const isBaseAsset = (sym: string) => /^(WETH|ETH|USDC|USDT|DAI|WBTC|WSTETH|STETH)$/i.test(sym);
-    const enriched = new Map<string, any>(); // tokenAddress -> GMGN info
-    const results: AgentReport[] = [];
-    for (const p of high) {
-      // Order tokens: the meme token (non-base, e.g. PEPE) first,
-      // the base asset (WETH/USDC/…) second — consistent with LP solana
-      // (Meteora: "Chiikawa-SOL", meme first). Fallback: token0 stays first.
-      const memeToken = !isBaseAsset(p.token0Symbol)
-        ? { addr: p.token0Address, sym: p.token0Symbol }
-        : !isBaseAsset(p.token1Symbol)
-          ? { addr: p.token1Address, sym: p.token1Symbol }
-          : { addr: p.token0Address, sym: p.token0Symbol };
-      const baseToken = memeToken.sym === p.token0Symbol
-        ? { addr: p.token1Address, sym: p.token1Symbol }
-        : { addr: p.token0Address, sym: p.token0Symbol };
-      if (memeToken.addr && !enriched.has(memeToken.addr)) {
-        try {
-          const info = await gmgn.fetchTokenInfo('robinhood', memeToken.addr);
-          enriched.set(memeToken.addr, info);
-        } catch { enriched.set(memeToken.addr, null); }
-      }
-      const info = enriched.get(memeToken.addr) ?? null;
-      // Meme token market cap MUST be > $200k (fail-closed: token not found
-      // in GMGN / unknown MC = pool rejected).
-      if (!info) {
-        console.log(`[LP ROBINHOOD] ⛔ Pool rejected: ${memeToken.sym}-${baseToken.sym} — token not found in GMGN (MC cannot be verified).`);
-        continue;
-      }
-      if (info.marketCapUsd < 200000) {
-        console.log(`[LP ROBINHOOD] ⛔ Pool rejected: ${memeToken.sym} MC $${(info.marketCapUsd / 1000).toFixed(0)}k < $200k.`);
-        continue;
-      }
-      if (info) {
-        // LP: tax gate disabled (LP tokens often have small taxes) — other gates remain.
-        const sec = securityGateToken(info, { enableTaxGate: false });
-        if (!sec.ok) {
-          console.log(`[LP ROBINHOOD] ⛔ Pool rejected: ${memeToken.sym}-${baseToken.sym} — ${sec.reasons.join(' ')}`);
-          continue;
-        }
-      }
-      // Per-token security audit (honeypot/blacklist/sell-lock) — fail-closed.
-      const audit = await gmgn.fetchTokenSecurity('robinhood', memeToken.addr);
-      const secAudit = securityAuditGate(audit, { enableTaxGate: false });
-      if (!secAudit.ok) {
-        console.log(`[LP ROBINHOOD] ⛔ Pool rejected: ${memeToken.sym}-${baseToken.sym} — AUDIT FAIL: ${secAudit.reasons.join(' ')}`);
-        continue;
-      }
-      const ageHours = info?.creationTimestamp !== null && info?.creationTimestamp ? (Date.now() / 1000 - info.creationTimestamp) / 3600 : undefined;
-      const smart = (info?.smartDegenCount ?? 0) + (info?.renownedCount ?? 0);
-      results.push({
-        passed: true,
-        signal: p,
-        reason: p.aiRecommendation,
-        confidence: 80,
-        payload: {
-          domain: 'LP_ROBINHOOD' as const,
-          title: `${memeToken.sym}-${baseToken.sym}`,
-          symbol: memeToken.sym,
-          contractAddress: p.poolAddress,
-          network: 'Robinhood Chain (Uniswap v3)',
-          dexPaidStatus: `Uniswap V3 • ${p.feeTier / 10000}% fee`,
-          poolUrl: `https://app.uniswap.org/explore/pools/robinhood/${p.poolAddress}`,
-          krystalUrl: `https://defi.krystal.app/pools/detail?chainId=4663&feeTier=${p.feeTier}&poolAddress=${p.poolAddress}&protocol=uniswapv3`,
-          token0Address: memeToken.addr,
-          token1Address: baseToken.addr,
-          token0Symbol: memeToken.sym,
-          token1Symbol: baseToken.sym,
-          token0ChartUrl: memeToken.addr ? `https://dexscreener.com/robinhood/${memeToken.addr}` : undefined,
-          token1ChartUrl: baseToken.addr ? `https://dexscreener.com/robinhood/${baseToken.addr}` : undefined,
-          gmgnUrl: memeToken.addr ? `https://gmgn.ai/robinhood/token/${memeToken.addr}` : undefined,
-          token0PriceUsd: info?.priceUsd || undefined,
-          token0MarketCapUsd: info?.marketCapUsd || undefined,
-          token0Volume24hUsd: info?.volume24hUsd || undefined,
-          token0Holders: info?.holderCount || undefined,
-          token0AgeHours: ageHours,
-          token0SmartDegenCount: info ? smart : undefined,
-          liquidity: `$${(p.tvlUsd / 1000).toFixed(1)}k`,
-          devHoldingPct: `${p.feeAprPercentage}% APR`,
-          sniperPct: `${p.apr24h.toFixed(1)}% 24h`,
-          bundlerPct: p.farmApr24h > 0 ? `+${p.farmApr24h.toFixed(1)}% farm` : 'no farm',
-          feeApr: `${(p.feesToTvlRatio24h * 100).toFixed(2)}% (24h Fee/TVL)`,
-          aiThesis: p.aiRecommendation,
-          confidenceScore: 80,
-          securityAuditPassed: true,
-          securityScore: tokenSecurityAuditLabel(audit),
-          socialHypeScore: Math.min(100, Math.round(60 + p.volumeToActiveTvlRatio1h * 5)),
-          liquidityUsd: p.tvlUsd,
-          volume1hUsd: p.volume1hUsd,
-        },
-      });
-    }
-    return results;
   }
 
   public getAgentStatuses(): Record<string, { active: boolean; autoExecute: boolean; maxTradeAmount: number }> {
@@ -487,7 +241,7 @@ export class OpenCatzHub {
     }
 
     // 2. Trigger Global Circuit Breaker Kill Switch
-    globalRiskEngineV2.activateKillSwitch(reason);
+    globalRiskEngine.activateKillSwitch(reason);
 
     return {
       closedPositionsCount: 0, // Mock count of closed positions

@@ -33,7 +33,7 @@ export async function launchTUI(): Promise<void> {
     console.log(drawDivider('─', 78, C.darkGray));
     console.log(`  ${C.lime}${C.bold}[1]${C.reset} ${C.white}🔑 Burner Wallet & Treasury Manager (Solana & Robinhood/EVM)${C.reset}`);
     console.log(`  ${C.pink}${C.bold}[2]${C.reset} ${C.white}🔍 On-Demand 3-Layer Swarm Token Audit (Input Contract Address)${C.reset}`);
-    console.log(`  ${C.cyan}${C.bold}[3]${C.reset} ${C.white}⚡ Background Screening Control (15 Multichain Specialist Agents)${C.reset}`);
+    console.log(`  ${C.cyan}${C.bold}[3]${C.reset} ${C.white}⚡ Background Screening Control (6 Meme & CT Alpha Scouts)${C.reset}`);
     console.log(`  ${C.yellow}${C.bold}[4]${C.reset} ${C.white}🧠 Command Room Chat Assistant (Natural Language Swarm Assistant)${C.reset}`);
     console.log(`  ${C.lime}${C.bold}[5]${C.reset} ${C.white}🛡️ 9-Lives Risk Management & Portfolio Drawdown Guards${C.reset}`);
     console.log(`  ${C.gold}${C.bold}[6]${C.reset} ${C.white}📊 Trade Journal & Realized PnL Analytics (View Performance)${C.reset}`);

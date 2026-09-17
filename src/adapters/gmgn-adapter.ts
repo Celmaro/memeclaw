@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { ApiKeyPool, loadApiKeyPool, createApiKeyPool } from '../services/api-key-pool.js';
+import { SourceHealthTracker, type SourceHealthSnapshot } from '../domain/source-health.js';
 
 export type SolChain = 'sol' | 'base' | 'eth' | 'bsc' | 'robinhood' | 'ink';
 export type RankInterval = '1m' | '5m' | '1h' | '6h' | '24h';
@@ -126,6 +127,7 @@ export type GMGNTokenSignal = GMGNRawToken & {
 
 export class GMGNAdapter {
   private baseUrl = 'https://openapi.gmgn.ai';
+  public readonly sourceHealth = new SourceHealthTracker();
 
   /** Security audit cache — module-level, shared across ALL adapter instances. */
   private static securityCache = new Map<string, { audit: GMGNSecurityAudit; at: number }>();
@@ -192,6 +194,10 @@ export class GMGNAdapter {
     return this.keyPool.size;
   }
 
+  public getSourceHealth(source = 'gmgn'): SourceHealthSnapshot {
+    return this.sourceHealth.snapshot(source);
+  }
+
   private async gmgnRequest<T>(
     method: 'GET' | 'POST',
     subPath: string,
@@ -203,6 +209,7 @@ export class GMGNAdapter {
     if (!initialKey) return null;
 
     const doRequest = async (attemptsLeft: number): Promise<T | null> => {
+      const sourceName = 'gmgn';
       const currentKey = this.keyPool.get() || initialKey;
       const timestamp = Math.floor(Date.now() / 1000);
       const client_id = crypto.randomUUID();
@@ -250,11 +257,13 @@ export class GMGNAdapter {
             return doRequest(attemptsLeft - 1);
           }
           console.warn(`[GMGN] Rate limited${banned ? ' (BANNED)' : ''} — skip ${subPath}, retry on the next pass (~5m).`);
+          this.sourceHealth.recordFailure(sourceName, `HTTP ${res.status} rate limit`);
           return null;
         }
 
         if (!res.ok) {
           console.warn(`[GMGN] HTTP ${res.status} for ${subPath}`);
+          this.sourceHealth.recordFailure(sourceName, `HTTP ${res.status}`);
           return null;
         }
 
@@ -265,11 +274,14 @@ export class GMGNAdapter {
             return doRequest(attemptsLeft - 1);
           }
           console.warn(`[GMGN] API code ${json.code}: ${json.message || json.error || ''}`);
+          this.sourceHealth.recordFailure(sourceName, `API code ${json.code}`);
           return null;
         }
+        this.sourceHealth.recordSuccess(sourceName);
         return json as T;
       } catch (err: any) {
         console.error(`[GMGN ERROR] ${subPath}: ${err.message}`);
+        this.sourceHealth.recordFailure(sourceName, err);
         return null;
       }
     };

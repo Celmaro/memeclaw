@@ -15,7 +15,6 @@ export async function runOpenCatzDoctor(): Promise<void> {
   const envKeys = [
     { name: 'AI_API_KEY / POOL', val: aiPool.get(), count: aiPool.size, required: true },
     { name: 'GMGN_API_KEYS (Pool)', val: gmgnPool.get(), count: gmgnPool.size, required: false },
-    { name: 'OPENSEA_API_KEY', val: process.env.OPENSEA_API_KEY, required: false },
     { name: 'TWEX_API_KEY', val: process.env.TWEX_API_KEY || process.env.TWITTER_BEARER_TOKEN, required: false },
     { name: 'GOPLUS_API_KEY', val: process.env.GOPLUS_API_KEY, required: false },
     { name: 'DISCORD_BOT_TOKEN', val: process.env.DISCORD_BOT_TOKEN, required: false },
@@ -39,7 +38,7 @@ export async function runOpenCatzDoctor(): Promise<void> {
     { chain: 'Robinhood Chain', url: process.env.EVM_ROBINHOOD_RPC_URL || process.env.ROBINHOOD_RPC_URL || 'https://rpc.robinhood.com' },
     { chain: 'Base L2', url: process.env.EVM_BASE_RPC_URL || 'https://mainnet.base.org' },
     { chain: 'Ethereum Mainnet', url: process.env.EVM_ETH_RPC_URL || 'https://eth.llamarpc.com' },
-    { chain: 'Ink Chain L2', url: process.env.EVM_INK_RPC_URL || 'https://rpc-gel.inkonchain.com' },
+    { chain: 'BNB Chain', url: process.env.EVM_BSC_RPC_URL || 'https://bsc-dataseed.binance.org' },
   ];
 
   for (const rpc of rpcs) {

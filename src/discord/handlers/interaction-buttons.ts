@@ -37,16 +37,12 @@ export async function handleModalSubmit(interaction: ModalSubmitInteraction): Pr
     });
   } else if (interaction.customId === 'api_setup_modal') {
     const twexKey = interaction.fields.getTextInputValue('twex_key');
-    const openseaKey = interaction.fields.getTextInputValue('opensea_key');
-
     if (twexKey) process.env.TWEX_API_KEY = twexKey.trim();
-    if (openseaKey) process.env.OPENSEA_API_KEY = openseaKey.trim();
 
     await interaction.reply({
       content:
         `⚙️ **API Keys Successfully Configured!**\n` +
         `• **TwexAPI (X/Twitter):** ${twexKey ? '`🟢 CONFIGURED`' : '`⚪ UNCHANGED`'}\n` +
-        `• **OpenSea API:** ${openseaKey ? '`🟢 CONFIGURED`' : '`⚪ UNCHANGED`'}\n` +
         `API configuration updated in runtime memory!`,
       ephemeral: true,
     });
@@ -80,16 +76,8 @@ export async function handleButtonPress(interaction: ButtonInteraction, hub: Ope
       .setPlaceholder('Paste your TwexAPI Key for X/Twitter Scraping...')
       .setRequired(false);
 
-    const openseaInput = new TextInputBuilder()
-      .setCustomId('opensea_key')
-      .setLabel('OpenSea API Key (EVM NFT Data)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Paste your OpenSea API Key...')
-      .setRequired(false);
-
     const row1 = new ActionRowBuilder<TextInputBuilder>().addComponents(twexInput);
-    const row2 = new ActionRowBuilder<TextInputBuilder>().addComponents(openseaInput);
-    modal.addComponents(row1, row2);
+    modal.addComponents(row1);
 
     await interaction.showModal(modal);
     return;

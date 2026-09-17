@@ -17,42 +17,33 @@ import { globalHealthWatcher } from './services/health-watcher.js';
 import { globalMarketRegimeFilter } from './services/market-regime.js';
 import { bootstrapDiscordChannels } from './discord/setup/channel-bootstrap.js';
 import { SkillLoader } from './services/skill-loader.js';
-import { MeteoraDLMMAdapter } from './adapters/meteora-dlmm-adapter.js';
-import { OpenSeaAdapter } from './adapters/opensea-adapter.js';
 import { SolanaTradeAdapter } from './adapters/solana-adapter.js';
 import { EVMTradeAdapter } from './adapters/evm-adapter.js';
-import { GMGNAdapter } from './adapters/gmgn-adapter.js';
+import { GMGNAdapter, type SolChain } from './adapters/gmgn-adapter.js';
 import { SolanaScreeningAgent } from './agents/meme-solana/solana-screening-agent.js';
 import { RobinhoodScreeningAgent } from './agents/meme-robinhood/robinhood-screening-agent.js';
 import { BaseScreeningAgent } from './agents/meme-base/base-screening-agent.js';
 import { EthScreeningAgent } from './agents/meme-eth/eth-screening-agent.js';
-import { InkScreeningAgent } from './agents/meme-ink/ink-screening-agent.js';
-import { LPSolanaAgent } from './agents/lp-solana/lp-solana-agent.js';
-import { LPRobinhoodAgent } from './agents/lp-robinhood/lp-robinhood-agent.js';
-import { NFTEthAgent } from './agents/nft-eth/nft-eth-agent.js';
-import { NFTBaseAgent } from './agents/nft-base/nft-base-agent.js';
-import { NFTInkAgent } from './agents/nft-ink/nft-ink-agent.js';
-import { NFTRobinhoodAgent } from './agents/nft-robinhood/nft-robinhood-agent.js';
-import { NFTHyperEVMAgent } from './agents/nft-hyperevm/nft-hyperevm-agent.js';
-import { PolymarketAdapter } from './adapters/polymarket-adapter.js';
-import { HyperliquidAdapter } from './adapters/hyperliquid-adapter.js';
-import { CexRadarAdapter } from './adapters/cex-radar-adapter.js';
-import { PolymarketAgent } from './agents/prediction/polymarket-agent.js';
-import { PerpsScreeningAgent } from './agents/perps/perps-screening-agent.js';
+import { BscScreeningAgent } from './agents/meme-bsc/bsc-screening-agent.js';
 import { CTAlphaAgent } from './agents/ct-alpha/ct-alpha-agent.js';
 import { priceAlertService, tradeJournalService, walletService, priceFeedService } from './discord/handlers/interaction-handler.js';
 import { TelegramService } from './telegram/telegram-service.js';
-import { StateStore } from './services/state-store.js';
+import { globalStateStore as stateStore } from './services/state-store.js';
 import { ApiKeyGuardService } from './services/api-key-guard.js';
-import { globalRiskEngineV2 } from './orchestrator/risk-engine-v2.js';
+import { globalRiskEngine } from './orchestrator/risk-engine.js';
 import { WalletTracker } from './services/wallet-tracker.js';
+import { compileExecutionVerdict } from './orchestrator/decision-engine.js';
+import { ExecutionPipeline } from './orchestrator/execution-pipeline.js';
+import { ExitManager } from './orchestrator/exit-manager.js';
+import { globalWalletCohortTracker } from './services/wallet-cohort-tracker.js';
+import { DecisionMemory } from './services/decision-memory.js';
+import type { ApprovedOrderIntent } from './domain/order-intent.js';
+import type { RiskDecision } from './domain/risk-decision.js';
 
 dotenv.config();
 
 const telegramService = new TelegramService();
 const apiKeyGuard = new ApiKeyGuardService();
-const ctAlphaAgent = new CTAlphaAgent(undefined, { emitCalls: true });
-const perpsScreeningAgent = new PerpsScreeningAgent(new HyperliquidAdapter(), undefined, new CexRadarAdapter());
 
 console.log('----------------------------------------------------');
 console.log('🐾 OPENCATZ MULTI-AGENT CRYPTO SYSTEM INITIALIZING...');
@@ -61,10 +52,12 @@ console.log('----------------------------------------------------');
 const isDryRun = isDryRunMode();
 console.log(`[CONFIG] DRY_RUN Mode: ${isDryRun ? 'ENABLED (Safe Mode)' : 'DISABLED (LIVE TRADING)'}`);
 
-// Initialize persistent StateStore (survives bot restarts)
-const stateStore = new StateStore();
+// Initialize persistent StateStore (survives bot restarts). Using the global
+// singleton keeps the REST API and runtime loops on the same ledger.
+const decisionMemory = new DecisionMemory(stateStore);
 
 const hub = new OpenCatzHub();
+const ctAlphaAgent = new CTAlphaAgent(undefined, { emitCalls: true });
 const swarmEngine = new SwarmConsensusEngine();
 swarmEngine.attachStateStore(stateStore);
 
@@ -89,6 +82,96 @@ function gateSignal(payload: any): boolean {
   return res.passed;
 }
 
+const AUTO_EXEC_POLICY_VERSION = 'memecoin-only-2026.09.16';
+const AUTO_EXIT_POLICY_VERSION = 'memecoin-exit-2026.09.16';
+
+function buildAutoExecuteDecision(input: { decisionId: string; domain: string; confidence: number }): RiskDecision {
+  return {
+    decisionId: input.decisionId,
+    decisionType: 'ALLOW',
+    reason: 'Deterministic auto-execute path: all screening/gates passed, LLM never signs or broadcasts.',
+    policyVersion: AUTO_EXEC_POLICY_VERSION,
+    decidedBy: 'algorithm',
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    gates: {
+      domain: input.domain,
+      confidence: input.confidence,
+      swarmGate: true,
+    },
+  };
+}
+
+function buildAutoExecuteIntent(input: {
+  traceId: string;
+  chain: ApprovedOrderIntent['chain'];
+  venue: string;
+  tokenAddress: string;
+  notionalUsd: number;
+  slippageBps: number;
+  decisionId: string;
+  launchIntelligence?: ApprovedOrderIntent['launchIntelligence'];
+  tokenGatebook?: ApprovedOrderIntent['tokenGatebook'];
+}): ApprovedOrderIntent {
+  return {
+    schemaVersion: 1,
+    intentId: `intent_${input.traceId}`,
+    traceId: input.traceId,
+    chain: input.chain,
+    venue: input.venue,
+    tokenAddress: input.tokenAddress,
+    side: 'BUY',
+    notionalUsd: input.notionalUsd,
+    minOut: 0,
+    slippageBps: input.slippageBps,
+    expirationAt: new Date(Date.now() + 60_000).toISOString(),
+    riskDecisionId: input.decisionId,
+    policyVersion: AUTO_EXEC_POLICY_VERSION,
+    idempotencyKey: input.traceId,
+    launchIntelligence: input.launchIntelligence,
+    tokenGatebook: input.tokenGatebook,
+  };
+}
+
+function buildExitDecision(input: { decisionId: string; symbol: string; reason: string }): RiskDecision {
+  return {
+    decisionId: input.decisionId,
+    decisionType: 'ALLOW',
+    reason: `Deterministic exit path: ${input.symbol} — ${input.reason}`,
+    policyVersion: AUTO_EXIT_POLICY_VERSION,
+    decidedBy: 'algorithm',
+    expiresAt: new Date(Date.now() + 120_000).toISOString(),
+    gates: { exit: true, symbol: input.symbol },
+  };
+}
+
+function buildExitIntent(input: {
+  traceId: string;
+  chain: ApprovedOrderIntent['chain'];
+  tokenAddress: string;
+  notionalUsd: number;
+  slippageBps: number;
+  decisionId: string;
+  exitSafety?: ApprovedOrderIntent['exitSafety'];
+}): ApprovedOrderIntent {
+  return {
+    schemaVersion: 1,
+    intentId: `exit_${input.traceId}`,
+    traceId: input.traceId,
+    chain: input.chain,
+    venue: input.chain === 'sol' ? 'jupiter' : 'evmswap',
+    tokenAddress: input.tokenAddress,
+    side: 'SELL',
+    notionalUsd: input.notionalUsd,
+    minOut: 0,
+    slippageBps: input.slippageBps,
+    expirationAt: new Date(Date.now() + 120_000).toISOString(),
+    riskDecisionId: input.decisionId,
+    policyVersion: AUTO_EXIT_POLICY_VERSION,
+    idempotencyKey: input.traceId,
+    exitSafety: input.exitSafety,
+  };
+}
+
 // Rate-limited Discord notification to #opencatz-control-room (never spam)
 const controlRoomNotifyCooldown = new Map<string, number>();
 const CONTROL_ROOM_NOTIFY_MS = 10 * 60 * 1000; // max 1 notif per key per 10 minutes
@@ -107,13 +190,6 @@ function withScreeningTimeout<T>(promise: Promise<T>, domain: string): Promise<T
       (error) => { clearTimeout(timer); reject(error); }
     );
   });
-}
-
-// Perps call-card titles are formatted `${direction} ${coin} (${leverage}x)`; extract
-// direction/leverage for the auto-execute simulation log (fallbacks if title deviates).
-function parsePerpsSimulation(title: string | undefined): { direction: string; leverage: string } {
-  const m = String(title || '').match(/^(LONG|SHORT)\s+\S+\s+\(([\d.]+)x\)/);
-  return { direction: m ? m[1] : 'LONG', leverage: m ? m[2] : '10' };
 }
 
 async function notifyControlRoom(client: any, key: string, content: string): Promise<void> {
@@ -141,11 +217,15 @@ async function notifyControlRoom(client: any, key: string, content: string): Pro
 
 const positionManager = new PositionManager();
 positionManager.attachStateStore(stateStore);
-const { PositionScanner } = await import('./services/position-scanner.js');
-const positionScanner = new PositionScanner({ positionManager, walletService, stateStore });
+
+const gmgnAdapter = new GMGNAdapter();
+// Read-only wallet intelligence. Cohort signals enrich alerts and research;
+// they are deliberately not executable order inputs.
+const WALLET_COHORT_CHAINS: SolChain[] = ['sol', 'robinhood', 'base', 'bsc', 'eth'];
 
 // Wallet auto-tracker: mirrors user's on-chain holdings into PositionManager lifecycle + exit alerts
-const walletTracker = new WalletTracker({ positionManager, stateStore, gmgn: new GMGNAdapter(), walletService, tradeJournal: tradeJournalService });
+const walletTracker = new WalletTracker({ positionManager, stateStore, gmgn: gmgnAdapter, walletService, tradeJournal: tradeJournalService });
+const exitManager = new ExitManager({ gmgn: gmgnAdapter, positionManager });
 
 import { bootstrapCustomStrategies } from './orchestrator/strategy-bootstrap.js';
 
@@ -153,45 +233,25 @@ const aiService = new AIService();
 await bootstrapCustomStrategies({ aiService });
 
 const skillLoader = new SkillLoader();
-const meteoraAdapter = new MeteoraDLMMAdapter();
-const openseaAdapter = new OpenSeaAdapter();
-const polymarketAdapter = new PolymarketAdapter();
 const solanaTradeAdapter = new SolanaTradeAdapter();
 const evmTradeAdapter = new EVMTradeAdapter();
+const executionPipeline = new ExecutionPipeline(decisionMemory);
 // Apply persisted per-domain screening overrides (set via chat `set_screening_config`)
 const savedScreeningConfigs = stateStore.getScreeningConfigs();
 const solanaScreeningAgent = new SolanaScreeningAgent(savedScreeningConfigs['meme-solana'] as any);
 const robinhoodScreeningAgent = new RobinhoodScreeningAgent(savedScreeningConfigs['meme-robinhood'] as any);
 const baseScreeningAgent = new BaseScreeningAgent(savedScreeningConfigs['meme-base'] as any);
 const ethScreeningAgent = new EthScreeningAgent(savedScreeningConfigs['meme-eth'] as any);
-const inkScreeningAgent = new InkScreeningAgent(savedScreeningConfigs['meme-ink'] as any);
-const lpSolanaAgent = new LPSolanaAgent(meteoraAdapter);
-const lpRobinhoodAgent = new LPRobinhoodAgent();
-const nftEthAgent = new NFTEthAgent(openseaAdapter);
-const nftBaseAgent = new NFTBaseAgent(openseaAdapter);
-const nftInkAgent = new NFTInkAgent(openseaAdapter);
-const nftRobinhoodAgent = new NFTRobinhoodAgent(openseaAdapter);
-const nftHyperEVMAgent = new NFTHyperEVMAgent(openseaAdapter);
-const polymarketAgent = new PolymarketAgent(polymarketAdapter, { emitCalls: true });
+const bscScreeningAgent = new BscScreeningAgent(savedScreeningConfigs['meme-bsc'] as any);
 
 // Wire shared adapters + singleton agent instances into the Hub so on-demand
 // passes (Discord/TUI) use the SAME instances as the 5-min loop.
-hub.attachAdapters({ meteoraAdapter });
 hub.attachAgentFactories({
   'meme-solana': () => solanaScreeningAgent,
   'meme-robinhood': () => robinhoodScreeningAgent,
   'meme-base': () => baseScreeningAgent,
   'meme-eth': () => ethScreeningAgent,
-  'meme-ink': () => inkScreeningAgent,
-  'lp-solana': () => lpSolanaAgent,
-  'lp-robinhood': () => lpRobinhoodAgent,
-  'nft-eth': () => nftEthAgent,
-  'nft-base': () => nftBaseAgent,
-  'nft-ink': () => nftInkAgent,
-  'nft-robinhood': () => nftRobinhoodAgent,
-  'nft-hyperevm': () => nftHyperEVMAgent,
-  prediction: () => polymarketAgent,
-  perps: () => perpsScreeningAgent,
+  'meme-bsc': () => bscScreeningAgent,
   'ct-alpha': () => ctAlphaAgent,
 });
 
@@ -205,8 +265,8 @@ const loadedSkills = skillLoader.loadAllSkills();
 
 console.log(`[SKILL SYSTEM] Active skills loaded: ${loadedSkills.length} (${loadedSkills.map(s => s.name).join(', ')})`);
 console.log(`[SECURITY SERVICES] RugCheck API (Solana) & GoPlus Security (EVM - Base/ETH/Robinhood) Initialized.`);
-console.log(`[SCREENING AGENTS] Solana Meme + EVM Meme + EVM NFT Sniping + Polymarket Prediction Agents Initialized.`);
-console.log(`[SCREENING ADAPTERS] OpenSea + Polymarket Gamma/CLOB + GMGN AI + Meteora DLMM + Uniswap LP Adapters Initialized.`);
+console.log(`[SCREENING AGENTS] Memecoin trading scouts initialized: Solana, Robinhood, Base, Ethereum, BSC + CT Alpha intelligence.`);
+console.log(`[SCREENING ADAPTERS] GMGN AI + Jupiter + EVM swap adapters initialized.`);
 console.log(`[AI SERVICE] Configured with provider: ${aiService.getConfig().provider}, model: ${aiService.getConfig().modelName}`);
 
 let discordClient: Client | null = null;
@@ -443,85 +503,15 @@ setInterval(async () => {
     });
     dispatchedPayloads.push(...ethDispatched);
 
-    const inkDispatched = await dispatchDomain({
-      domain: 'meme-ink',
-      channelName: 'call-meme-ink',
-      isActive: () => hub.isAgentActive('meme-ink'),
-      runPass: () => withScreeningTimeout(inkScreeningAgent.runScreeningPass(), 'meme-ink'),
-      keyReady: () => apiKeyGuard.checkDomainKeys('meme-ink'),
+    const bscDispatched = await dispatchDomain({
+      domain: 'meme-bsc',
+      channelName: 'call-meme-bsc',
+      isActive: () => hub.isAgentActive('meme-bsc'),
+      runPass: () => withScreeningTimeout(bscScreeningAgent.runScreeningPass(), 'meme-bsc'),
+      keyReady: () => apiKeyGuard.checkDomainKeys('meme-bsc'),
       onHalt: (domain, msg) => notifyControlRoom(discordClient, `halt:${domain}`, `⚠️ **${domain.toUpperCase()} TIDAK BISA JALAN**\n${msg}`),
     });
-    dispatchedPayloads.push(...inkDispatched);
-
-    const nftEthDispatched = await dispatchDomain({
-      domain: 'nft-eth',
-      channelName: 'call-nft-eth',
-      isActive: () => hub.isAgentActive('nft-eth'),
-      runPass: () => withScreeningTimeout(nftEthAgent.runScreeningPass(), 'nft-eth'),
-      keyReady: () => apiKeyGuard.checkDomainKeys('nft-eth'),
-      onHalt: (domain, msg) => notifyControlRoom(discordClient, `halt:${domain}`, `⚠️ **${domain.toUpperCase()} TIDAK BISA JALAN**\n${msg}`),
-    });
-    dispatchedPayloads.push(...nftEthDispatched);
-
-    const nftBaseDispatched = await dispatchDomain({
-      domain: 'nft-base',
-      channelName: 'call-nft-base',
-      isActive: () => hub.isAgentActive('nft-base'),
-      runPass: () => withScreeningTimeout(nftBaseAgent.runScreeningPass(), 'nft-base'),
-      keyReady: () => apiKeyGuard.checkDomainKeys('nft-base'),
-      onHalt: (domain, msg) => notifyControlRoom(discordClient, `halt:${domain}`, `⚠️ **${domain.toUpperCase()} TIDAK BISA JALAN**\n${msg}`),
-    });
-    dispatchedPayloads.push(...nftBaseDispatched);
-
-    const nftInkDispatched = await dispatchDomain({
-      domain: 'nft-ink',
-      channelName: 'call-nft-ink',
-      isActive: () => hub.isAgentActive('nft-ink'),
-      runPass: () => withScreeningTimeout(nftInkAgent.runScreeningPass(), 'nft-ink'),
-      keyReady: () => apiKeyGuard.checkDomainKeys('nft-ink'),
-      onHalt: (domain, msg) => notifyControlRoom(discordClient, `halt:${domain}`, `⚠️ **${domain.toUpperCase()} TIDAK BISA JALAN**\n${msg}`),
-    });
-    dispatchedPayloads.push(...nftInkDispatched);
-
-    const nftRobinhoodDispatched = await dispatchDomain({
-      domain: 'nft-robinhood',
-      channelName: 'call-nft-robinhood',
-      isActive: () => hub.isAgentActive('nft-robinhood'),
-      runPass: () => withScreeningTimeout(nftRobinhoodAgent.runScreeningPass(), 'nft-robinhood'),
-      keyReady: () => apiKeyGuard.checkDomainKeys('nft-robinhood'),
-      onHalt: (domain, msg) => notifyControlRoom(discordClient, `halt:${domain}`, `⚠️ **${domain.toUpperCase()} TIDAK BISA JALAN**\n${msg}`),
-    });
-    dispatchedPayloads.push(...nftRobinhoodDispatched);
-
-    const nftHyperEVMDispatched = await dispatchDomain({
-      domain: 'nft-hyperevm',
-      channelName: 'call-nft-hyperevm',
-      isActive: () => hub.isAgentActive('nft-hyperevm'),
-      runPass: () => withScreeningTimeout(nftHyperEVMAgent.runScreeningPass(), 'nft-hyperevm'),
-      keyReady: () => apiKeyGuard.checkDomainKeys('nft-hyperevm'),
-      onHalt: (domain, msg) => notifyControlRoom(discordClient, `halt:${domain}`, `⚠️ **${domain.toUpperCase()} TIDAK BISA JALAN**\n${msg}`),
-    });
-    dispatchedPayloads.push(...nftHyperEVMDispatched);
-
-    const predictionDispatched = await dispatchDomain({
-      domain: 'prediction',
-      channelName: 'call-prediction-markets',
-      isActive: () => hub.isAgentActive('prediction'),
-      runPass: () => withScreeningTimeout(polymarketAgent.runScreeningPass(), 'prediction'),
-      keyReady: () => apiKeyGuard.checkDomainKeys('prediction'),
-      onHalt: (domain, msg) => notifyControlRoom(discordClient, `halt:${domain}`, `⚠️ **${domain.toUpperCase()} TIDAK BISA JALAN**\n${msg}`),
-    });
-    dispatchedPayloads.push(...predictionDispatched);
-
-    const perpsDispatched = await dispatchDomain({
-      domain: 'perps',
-      channelName: 'call-whale-tracking',
-      isActive: () => hub.isAgentActive('perps'),
-      runPass: () => withScreeningTimeout(perpsScreeningAgent.runScreeningPass(), 'perps'),
-      keyReady: () => apiKeyGuard.checkDomainKeys('perps'),
-      onHalt: (domain, msg) => notifyControlRoom(discordClient, `halt:${domain}`, `⚠️ **${domain.toUpperCase()} TIDAK BISA JALAN**\n${msg}`),
-    });
-    dispatchedPayloads.push(...perpsDispatched);
+    dispatchedPayloads.push(...bscDispatched);
 
     const ctAlphaDispatched = await dispatchDomain({
       domain: 'ct-alpha',
@@ -529,29 +519,41 @@ setInterval(async () => {
       isActive: () => hub.isAgentActive('ct-alpha'),
       runPass: () => withScreeningTimeout(ctAlphaAgent.runScreeningPass(), 'ct-alpha'),
       keyReady: () => apiKeyGuard.checkDomainKeys('ct-alpha'),
-      onHalt: (domain, msg) => notifyControlRoom(discordClient, `halt:${domain}`, `⚠️ **${domain.toUpperCase()} TIDAK BISA JALAN**\n${msg}`),
+      onHalt: (domain, msg) => notifyControlRoom(discordClient, `halt:${domain}`, `⚠️ **${domain.toUpperCase()} UNAVAILABLE**\n${msg}`),
     });
     dispatchedPayloads.push(...ctAlphaDispatched);
 
-    const lpSolanaDispatched = await dispatchDomain({
-      domain: 'lp-solana',
-      channelName: 'call-lp-solana',
-      isActive: () => hub.isAgentActive('lp-solana'),
-      runPass: () => withScreeningTimeout(lpSolanaAgent.runScreeningPass(), 'lp-solana'),
-      keyReady: () => ({ ready: true, statusMessage: '' }),
-      onHalt: (domain, msg) => notifyControlRoom(discordClient, `halt:${domain}`, `⚠️ **${domain.toUpperCase()} TIDAK BISA JALAN**\n${msg}`),
-    });
-    dispatchedPayloads.push(...lpSolanaDispatched);
-
-    const lpRobinhoodDispatched = await dispatchDomain({
-      domain: 'lp-robinhood',
-      channelName: 'call-lp-robinhood',
-      isActive: () => hub.isAgentActive('lp-robinhood'),
-      runPass: () => withScreeningTimeout(lpRobinhoodAgent.runScreeningPass(), 'lp-robinhood'),
-      keyReady: () => ({ ready: true, statusMessage: '' }),
-      onHalt: (domain, msg) => notifyControlRoom(discordClient, `halt:${domain}`, `⚠️ **${domain.toUpperCase()} TIDAK BISA JALAN**\n${msg}`),
-    });
-    dispatchedPayloads.push(...lpRobinhoodDispatched);
+    // Wallet cohort pass: fetch smart-money/KOL fills, then emit only
+    // evidence-backed alerts. Algorithms still own all hard execution gates.
+    try {
+      const cohortBatches = await Promise.all(
+        WALLET_COHORT_CHAINS.flatMap((chain) =>
+          (['smartmoney', 'kol'] as const).map(async (kind) => ({
+            chain,
+            trades: await gmgnAdapter.fetchTrackTrades(chain, kind),
+          }))
+        )
+      );
+      for (const batch of cohortBatches) {
+        globalWalletCohortTracker.ingest(batch.chain, batch.trades);
+      }
+      const cohortSignals = globalWalletCohortTracker.evaluate();
+      for (const signal of cohortSignals) {
+        const token = signal.tokenAddress || signal.boughtTokenAddress || 'unknown-token';
+        await notifyControlRoom(
+          discordClient,
+          `cohort:${signal.chain}:${signal.type}:${token}`,
+          `🧭 **WALLET COHORT ${signal.type}** ${signal.chain.toUpperCase()}\n${signal.note}\n` +
+          `Wallets: ${signal.wallets.length} | Score: ${signal.score}/100\n` +
+          `Token: \`${token}\`\n_Read-only intelligence; no automatic order created._`
+        );
+      }
+      if (cohortSignals.length > 0) {
+        console.log(`[WALLET COHORT] ${cohortSignals.length} new read-only signal(s).`);
+      }
+    } catch (cohortErr: any) {
+      console.warn(`[WALLET COHORT] pass failed: ${cohortErr.message}`);
+    }
 
     // Real Swarm Consensus gate (>= 80%): every signal must pass with real data
     dispatchedPayloads = dispatchedPayloads.filter((item) => gateSignal(item.payload));
@@ -586,45 +588,92 @@ setInterval(async () => {
         item.channelName === 'call-meme-robinhood' ? 'meme-robinhood' :
         item.channelName === 'call-meme-base' ? 'meme-base' :
         item.channelName === 'call-meme-eth' ? 'meme-eth' :
-        item.channelName === 'call-meme-ink' ? 'meme-ink' :
-        item.channelName === 'call-whale-tracking' ? 'perps' :
-        item.channelName === 'call-prediction-markets' ? 'prediction' :
+        item.channelName === 'call-meme-bsc' ? 'meme-bsc' :
         undefined;
+      const traceId = `auto_${now}_${autoExecDomain || item.channelName}_${item.payload.contractAddress || item.payload.symbol || 'token'}`;
+      const signalChain = autoExecDomain === 'meme-solana' ? 'sol' :
+        autoExecDomain === 'meme-robinhood' ? 'robinhood' :
+        autoExecDomain === 'meme-base' ? 'base' :
+        autoExecDomain === 'meme-eth' ? 'eth' :
+        autoExecDomain === 'meme-bsc' ? 'bsc' : 'unknown';
+      try {
+        decisionMemory.recordSignal({
+          traceId,
+          source: item.channelName.replace('call-', ''),
+          chain: signalChain,
+          tokenAddress: item.payload.contractAddress,
+          tokenSymbol: item.payload.symbol,
+          signalScore: Number(item.payload.confidenceScore) || 0,
+          rawPayloadJson: JSON.stringify(item.payload),
+        });
+      } catch (memErr: any) {
+        console.warn(`[DECISION MEMORY] signal trace failed for ${item.payload.symbol}: ${memErr.message}`);
+      }
       if (autoExecDomain && AUTO_EXECUTE_ENABLED) {
         const autoExec = hub.isAutoExecuteEnabled(autoExecDomain);
         if (autoExec.enabled) {
           try {
-            // ── RISK GATE (RiskEngineV2 / RiskManager) ──
-            // Never execute (even simulated) when risk limits are hit: global
-            // drawdown cap, per-trade size cap, or kill-switch active. This wires
-            // the previously-dead risk engine into the actual execution path.
-            const riskCheck = hub.getRiskManager().isTradeAllowed(autoExec.maxTradeAmount || 0.1);
-            if (!riskCheck.allowed) {
-              console.warn(`[AUTO-EXECUTE] ${autoExecDomain} ${item.payload.symbol}: BLOCKED by risk gate — ${riskCheck.reason}`);
-              await notifyControlRoom(discordClient, `risk:${autoExecDomain}`, `🚫 **RISK GATE BLOCKED** auto-execute ${autoExecDomain} ${item.payload.symbol}: ${riskCheck.reason}`);
+            // ── DECISION ENGINE GATE ──
+            // Algorithms emit an ALLOW decision + signed intent; LLMs never sign
+            // or broadcast. compileExecutionVerdict fails closed on risk size,
+            // kill-switch, stale decisions, and malformed intents.
+            const decisionId = `risk_${traceId}`;
+            const chainId: ApprovedOrderIntent['chain'] =
+              autoExecDomain === 'meme-solana' ? 'sol' :
+              autoExecDomain === 'meme-robinhood' ? 'robinhood' :
+              autoExecDomain === 'meme-base' ? 'base' :
+              autoExecDomain === 'meme-eth' ? 'eth' : 'bsc';
+            const venue = chainId === 'sol' ? 'jupiter' : 'evmswap';
+            const decision = buildAutoExecuteDecision({ decisionId, domain: autoExecDomain, confidence: Number(item.payload.confidenceScore) || 0 });
+            const intent = buildAutoExecuteIntent({
+              traceId,
+              chain: chainId,
+              venue,
+              tokenAddress: item.payload.contractAddress ?? '',
+              notionalUsd: autoExec.maxTradeAmount || 0.1,
+              slippageBps: 150,
+              decisionId,
+              launchIntelligence: item.payload.launchEvidence,
+              tokenGatebook: item.payload.gatebookEvidence,
+            });
+            const verdict = compileExecutionVerdict({ intent, decision, riskManager: hub.getRiskManager(), killSwitch: globalRiskEngine });
+              if (verdict.verdict !== 'EXECUTABLE') {
+              console.warn(`[AUTO-EXECUTE] ${autoExecDomain} ${item.payload.symbol}: BLOCKED by decision engine — ${verdict.reason}`);
+              await notifyControlRoom(discordClient, `risk:${autoExecDomain}`, `🚫 **DECISION ENGINE BLOCKED** auto-execute ${autoExecDomain} ${item.payload.symbol}: ${verdict.reason}`);
               break;
             }
-            if (globalRiskEngineV2.checkKillSwitchStatus()) {
-              console.warn(`[AUTO-EXECUTE] ${autoExecDomain} ${item.payload.symbol}: BLOCKED — emergency kill-switch active.`);
-              await notifyControlRoom(discordClient, 'risk:killswitch', `🚨 **KILL-SWITCH ACTIVE** — auto-execute ${autoExecDomain} ${item.payload.symbol} blocked.`);
+            try {
+              decisionMemory.recordDecision({
+                traceId,
+                decisionId,
+                decisionType: 'AUTO_BUY',
+                reason: decision.reason,
+                chain: chainId,
+                tokenAddress: item.payload.contractAddress,
+                tokenSymbol: item.payload.symbol,
+              });
+            } catch (memErr: any) {
+              console.warn(`[DECISION MEMORY] decision trace failed for ${item.payload.symbol}: ${memErr.message}`);
+            }
+            console.log(`[AUTO-EXECUTE] ${autoExecDomain} ${item.payload.symbol}: verdict ${verdict.verdict} (${verdict.intentId}, ${verdict.notionalUsd} usd).`);
+            const submitted = executionPipeline.submit({ intent, decision, riskManager: hub.getRiskManager(), killSwitch: globalRiskEngine });
+            if (!submitted.ok) {
+              console.warn(`[AUTO-EXECUTE] ${autoExecDomain} ${item.payload.symbol}: pipeline rejected — ${submitted.error}`);
+              await notifyControlRoom(discordClient, `risk:${autoExecDomain}`, `⚠️ **EXECUTION PIPELINE REJECTED** ${autoExecDomain} ${item.payload.symbol}: ${submitted.error}`);
               break;
             }
+            const pipelineOrderId = submitted.order!.intent.intentId;
             if (autoExecDomain === 'meme-solana' && item.payload.contractAddress) {
               const execRes = await solanaTradeAdapter.executeBuyToken({ outputMint: item.payload.contractAddress, amountSol: autoExec.maxTradeAmount || 0.1, slippageBps: 150 });
+              if (execRes.success) executionPipeline.markSimulated(pipelineOrderId, execRes.txHash);
+              else executionPipeline.markCancelled(pipelineOrderId);
               console.log(`[AUTO-EXECUTE] meme-solana ${item.payload.symbol}: ${execRes.success ? (execRes.simulated ? 'SIMULATED ' : '') + 'ok' : 'FAILED'} ${execRes.error || ''} (out=${execRes.outputTokens}, impact=${execRes.priceImpactPercentage}%)`);
-            } else if ((autoExecDomain === 'meme-robinhood' || autoExecDomain === 'meme-base' || autoExecDomain === 'meme-eth' || autoExecDomain === 'meme-ink') && item.payload.contractAddress) {
-              const chainKey = autoExecDomain === 'meme-base' ? 'base' : autoExecDomain === 'meme-eth' ? 'eth' : autoExecDomain === 'meme-ink' ? 'ink' : 'robinhood';
+            } else if ((autoExecDomain === 'meme-robinhood' || autoExecDomain === 'meme-base' || autoExecDomain === 'meme-eth' || autoExecDomain === 'meme-bsc') && item.payload.contractAddress) {
+              const chainKey = autoExecDomain === 'meme-base' ? 'base' : autoExecDomain === 'meme-eth' ? 'eth' : autoExecDomain === 'meme-bsc' ? 'bsc' : 'robinhood';
               const execRes = await evmTradeAdapter.executeBuyToken({ chain: chainKey as any, tokenAddress: item.payload.contractAddress, amountEth: autoExec.maxTradeAmount || 0.1, slippagePercentage: 1.5 });
+              if (execRes.success) executionPipeline.markSimulated(pipelineOrderId, execRes.txHash);
+              else executionPipeline.markCancelled(pipelineOrderId);
               console.log(`[AUTO-EXECUTE] ${autoExecDomain} ${item.payload.symbol}: ${execRes.success ? (execRes.simulated ? 'SIMULATED ' : '') + 'ok' : 'FAILED'} ${execRes.error || ''} (out=${execRes.outputTokens})`);
-            } else if (autoExecDomain === 'perps' && isDryRun) {
-              // Simulation-only: HyperliquidAdapter.placeOrder exists (DRY_RUN-capable) but
-              // dispatch keeps a log-only simulation until live perps execution is enabled.
-              const sim = parsePerpsSimulation(item.payload.title);
-              console.log(`[AUTO-EXECUTE] perps ${item.payload.symbol}: SIMULATED ${sim.direction} ${autoExec.maxTradeAmount || 0.1} @ ${sim.leverage}x`);
-            } else if (autoExecDomain === 'prediction' && isDryRun) {
-              // Simulation-only: PolymarketAdapter.placeBet exists (DRY_RUN-capable) but
-              // dispatch keeps a log-only simulation of the standard 50 USDC bet.
-              console.log(`[AUTO-EXECUTE] prediction ${item.payload.symbol}: SIMULATED ${item.payload.symbol} 50 USDC`);
             }
 
             // Record every auto-executed signal into the trade journal (real data).
@@ -632,12 +681,13 @@ setInterval(async () => {
             try {
               const entryPrice = parseFloat(String(item.payload.priceUsd || '0').replace(/[^0-9.]/g, '')) || 0;
               const journalDomain = (item.payload.domain || 'MEME_SOLANA') as any;
+              const journalId = `TRADE_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
               tradeJournalService.recordTradeEntry({
-                id: `TRADE_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                id: journalId,
                 domain: journalDomain,
                 symbol: item.payload.symbol || 'TOKEN',
                 contractAddressOrId: item.payload.contractAddress || item.payload.symbol || 'N/A',
-                chain: autoExecDomain === 'meme-solana' ? 'solana' : autoExecDomain === 'meme-robinhood' ? 'robinhood' : autoExecDomain === 'meme-base' ? 'base' : autoExecDomain === 'meme-eth' ? 'eth' : autoExecDomain === 'meme-ink' ? 'ink' : autoExecDomain === 'perps' ? 'hyperliquid' : 'polymarket',
+                chain: autoExecDomain === 'meme-solana' ? 'solana' : autoExecDomain === 'meme-robinhood' ? 'robinhood' : autoExecDomain === 'meme-base' ? 'base' : autoExecDomain === 'meme-eth' ? 'eth' : 'bsc',
                 entryTimestamp: new Date().toISOString(),
                 entryPriceUsdOrEth: entryPrice,
                 positionSizeUsd: (autoExec.maxTradeAmount || 0.1) * (entryPrice || 1),
@@ -645,6 +695,14 @@ setInterval(async () => {
                 strategyUsed: 'auto-execute',
                 aiThesisSummary: (item.rawReason || item.payload.aiThesis || '').slice(0, 200),
                 status: 'OPEN',
+              });
+              decisionMemory.recordJournal({
+                traceId,
+                journalId,
+                source: 'trade-journal',
+                chain: chainId,
+                tokenAddress: item.payload.contractAddress,
+                tokenSymbol: item.payload.symbol,
               });
               console.log(`[TRADE JOURNAL] Auto-execute recorded: ${item.payload.symbol} (${autoExecDomain}) OPEN entry.`);
             } catch (journalErr: any) {
@@ -697,14 +755,8 @@ setInterval(async () => {
         walletTracker.registerTrackedToken('base', item.payload.contractAddress, item.payload.symbol);
       } else if (item.channelName === 'call-meme-eth' && item.payload.contractAddress) {
         walletTracker.registerTrackedToken('eth', item.payload.contractAddress, item.payload.symbol);
-      } else if (item.channelName === 'call-meme-ink' && item.payload.contractAddress) {
-        walletTracker.registerTrackedToken('ink', item.payload.contractAddress, item.payload.symbol);
-      } else if (item.channelName === 'call-lp-robinhood' && item.payload.contractAddress) {
-        walletTracker.registerTrackedToken('robinhood', item.payload.contractAddress, item.payload.symbol);
-      } else if (item.channelName === 'call-nft-sniping' && item.payload.symbol) {
-        // NFT: register collection slug for user position monitoring (floor drop -20%, TP, etc.)
-        stateStore.setTrackedNftCollection(item.payload.symbol.toLowerCase());
-        console.log(`[POSITION MONITOR] NFT collection di-track: ${item.payload.symbol}`);
+      } else if (item.channelName === 'call-meme-bsc' && item.payload.contractAddress) {
+        walletTracker.registerTrackedToken('bsc', item.payload.contractAddress, item.payload.symbol);
       }
 
       // 4. Feed the Swarm Learning Engine
@@ -726,17 +778,155 @@ setInterval(async () => {
     // Wallet Auto-Tracking: detect user's own positions + exit alerts
     try {
       const alerts = await walletTracker.syncPositions();
-      // PositionScanner: perps (Hyperliquid), LP solana (Meteora), prediction (Polymarket)
-      const scannerAlerts = await positionScanner.scanAll();
-      const allAlerts = [...alerts, ...scannerAlerts];
-      if (allAlerts.length > 0) {
-        for (const a of allAlerts) {
+      if (alerts.length > 0) {
+        for (const a of alerts) {
           await notifyControlRoom(discordClient, `position:${a.type}:${a.address}`, `🚨 **POSITION ALERT**\n${a.reason}`);
         }
       }
-      console.log(`[POSITION MONITOR] ${positionManager.getActivePositions().length} spot + ${positionManager.getActiveLpPositions().length} LP + ${positionManager.getActiveNftPositions().length} NFT positions tracked, ${allAlerts.length} alert(s) fired this cycle.`);
+      console.log(`[POSITION MONITOR] ${positionManager.getActivePositions().length} memecoin spot positions tracked, ${alerts.length} alert(s) fired this cycle.`);
     } catch (wtErr: any) {
       console.warn(`[POSITION MONITOR] sync failed this cycle: ${wtErr.message}`);
+    }
+
+    // Algorithmic exit manager: deterministic SELL triggers for open positions.
+    // AUTO_EXECUTE_ENABLED=true or AUTO_EXIT_ENABLED=true enables actual sells
+    // through the same risk-gated execution pipeline as buys. Otherwise it only
+    // notifies the control room so a human can take the exit.
+    try {
+      const AUTO_EXIT_ENABLED = process.env.AUTO_EXECUTE_ENABLED === 'true' || process.env.AUTO_EXIT_ENABLED === 'true';
+      const exitTriggers = await exitManager.evaluatePositions();
+      if (exitTriggers.length > 0) {
+        console.log(`[EXIT MANAGER] ${exitTriggers.length} algorithmic exit trigger(s) fired.`);
+      }
+      for (const trigger of exitTriggers) {
+        const position = positionManager.getPosition(trigger.positionId);
+        const symbol = trigger.symbol || position?.symbol || 'TOKEN';
+        if (!position || !(position.amount > 0)) {
+          console.warn(`[EXIT MANAGER] Skipping exit for ${symbol}: no active position found.`);
+          continue;
+        }
+
+        const reasonLabel = trigger.reason;
+        const amountLabel = trigger.amountFraction >= 1 ? 'FULL' : `${Math.round(trigger.amountFraction * 100)}%`;
+        const notifyText = `🚪 **EXIT SIGNAL** ${symbol} (${trigger.chain.toUpperCase()})\nReason: \`${reasonLabel}\` — ${trigger.notes || ''}\nPrice: $${trigger.exitPriceUsd.toFixed(8)} — Size: ${amountLabel}`;
+
+        if (!AUTO_EXIT_ENABLED) {
+          await notifyControlRoom(discordClient, `exit:${trigger.positionId}:${reasonLabel}`, notifyText);
+          console.log(`[EXIT MANAGER] Manual mode: ${symbol} ${reasonLabel} — control room notified, not executed.`);
+          continue;
+        }
+
+        const traceId = `exit_${Date.now()}_${trigger.chain}_${trigger.tokenAddress}_${reasonLabel}`;
+        const decisionId = `risk_${traceId}`;
+        const notionalUsd = Math.max(0.01, (position.currentPriceUsd || trigger.exitPriceUsd) * position.amount * trigger.amountFraction);
+        const chain = trigger.chain as ApprovedOrderIntent['chain'];
+        const decision = buildExitDecision({ decisionId, symbol, reason: trigger.notes || reasonLabel });
+        const intent = buildExitIntent({
+          traceId,
+          chain,
+          tokenAddress: trigger.tokenAddress,
+          notionalUsd,
+          slippageBps: 150,
+          decisionId,
+          exitSafety: trigger.exitEvidence,
+        });
+
+        const verdict = compileExecutionVerdict({ intent, decision, riskManager: hub.getRiskManager(), killSwitch: globalRiskEngine });
+        if (verdict.verdict !== 'EXECUTABLE') {
+          console.warn(`[EXIT MANAGER] ${symbol} ${reasonLabel}: BLOCKED by decision engine — ${verdict.reason}`);
+          await notifyControlRoom(discordClient, `risk:exit:${trigger.positionId}`, `🚫 **EXIT DECISION ENGINE BLOCKED** ${symbol} ${reasonLabel}: ${verdict.reason}`);
+          continue;
+        }
+        try {
+          decisionMemory.recordDecision({
+            traceId,
+            decisionId,
+            decisionType: 'EXIT',
+            reason: decision.reason,
+            chain,
+            tokenAddress: trigger.tokenAddress,
+            tokenSymbol: symbol,
+          });
+        } catch (memErr: any) {
+          console.warn(`[DECISION MEMORY] exit decision trace failed for ${symbol}: ${memErr.message}`);
+        }
+
+        const submitted = executionPipeline.submit({ intent, decision, riskManager: hub.getRiskManager(), killSwitch: globalRiskEngine });
+        if (!submitted.ok) {
+          console.warn(`[EXIT MANAGER] ${symbol} ${reasonLabel}: pipeline rejected — ${submitted.error}`);
+          await notifyControlRoom(discordClient, `risk:exit:${trigger.positionId}`, `⚠️ **EXIT PIPELINE REJECTED** ${symbol} ${reasonLabel}: ${submitted.error}`);
+          continue;
+        }
+
+        const pipelineOrderId = submitted.order!.intent.intentId;
+        const sellAmount = position.amount * trigger.amountFraction;
+        let execSucceeded = false;
+        if (trigger.chain === 'sol') {
+          const execRes = await solanaTradeAdapter.executeSellToken({
+            inputMint: trigger.tokenAddress,
+            amountTokens: sellAmount,
+            slippageBps: 150,
+          });
+          execSucceeded = execRes.success;
+          if (execRes.success) {
+            if (execRes.simulated) executionPipeline.markSimulated(pipelineOrderId, execRes.txHash);
+            else executionPipeline.markFilled(pipelineOrderId, execRes.txHash || '', notionalUsd);
+          } else {
+            executionPipeline.markCancelled(pipelineOrderId);
+          }
+          console.log(`[EXIT MANAGER] ${symbol} SOL SELL ${execRes.success ? (execRes.simulated ? 'SIMULATED ' : '') + 'ok' : 'FAILED'} ${execRes.error || ''} (out=${execRes.outputTokens}, impact=${execRes.priceImpactPercentage}%)`);
+        } else {
+          const chainKey = trigger.chain === 'eth' ? 'eth' : trigger.chain === 'bsc' ? 'bsc' : trigger.chain === 'robinhood' ? 'robinhood' : 'base';
+          const execRes = await evmTradeAdapter.executeSellToken({
+            chain: chainKey,
+            tokenAddress: trigger.tokenAddress,
+            amountTokens: sellAmount,
+            slippagePercentage: 1.5,
+          });
+          execSucceeded = execRes.success;
+          if (execRes.success) {
+            if (execRes.simulated) executionPipeline.markSimulated(pipelineOrderId, execRes.txHash);
+            else executionPipeline.markFilled(pipelineOrderId, execRes.txHash || '', notionalUsd);
+          } else {
+            executionPipeline.markCancelled(pipelineOrderId);
+          }
+          console.log(`[EXIT MANAGER] ${symbol} ${chainKey.toUpperCase()} SELL ${execRes.success ? (execRes.simulated ? 'SIMULATED ' : '') + 'ok' : 'FAILED'} ${execRes.error || ''} (out=${execRes.outputTokens})`);
+        }
+
+        if (!execSucceeded) continue;
+
+        if (trigger.amountFraction >= 1) {
+          if (trigger.reason === 'TP1') positionManager.markTpTriggered(trigger.positionId, 'tp100Triggered');
+          if (trigger.reason === 'TP2') positionManager.markTpTriggered(trigger.positionId, 'tp200Triggered');
+          positionManager.removePosition(trigger.positionId);
+        } else {
+          if (trigger.reason === 'TP1') positionManager.markTpTriggered(trigger.positionId, 'tp100Triggered');
+          if (trigger.reason === 'TP2') positionManager.markTpTriggered(trigger.positionId, 'tp200Triggered');
+          positionManager.scalePositionAmount(trigger.positionId, 1 - trigger.amountFraction, trigger.exitPriceUsd);
+        }
+
+        try {
+          const journalStatus = trigger.reason === 'TP1' || trigger.reason === 'TP2' ? 'CLOSED_TP' : trigger.reason === 'SL' ? 'CLOSED_SL' : 'CLOSED_MANUAL';
+          const closed = tradeJournalService.closeByContractAddressOrId(trigger.tokenAddress, trigger.exitPriceUsd, journalStatus, trigger.reason);
+          if (closed > 0) {
+            decisionMemory.recordJournal({
+              traceId,
+              journalId: `exit:${trigger.tokenAddress}:${journalStatus}`,
+              source: 'trade-journal',
+              chain,
+              tokenAddress: trigger.tokenAddress,
+              tokenSymbol: symbol,
+            });
+          }
+          if (closed > 0) console.log(`[EXIT MANAGER] Closed ${closed} journal entry(ies) for ${symbol} (${trigger.reason})`);
+        } catch (journalErr: any) {
+          console.warn(`[EXIT MANAGER] Journal close failed for ${symbol}: ${journalErr.message}`);
+        }
+
+        await notifyControlRoom(discordClient, `exit:${trigger.positionId}:${reasonLabel}`, notifyText);
+      }
+    } catch (exitErr: any) {
+      console.warn(`[EXIT MANAGER] Exit evaluation failed this cycle: ${exitErr.message}`);
     }
   } catch (err: any) {
     console.error('[SUB-AGENTS LOOP ERROR]', (err as any).errors || err.stack || err.message);

@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { RiskManager } from '../src/orchestrator/risk-manager.js';
+import { RiskEngine } from '../src/orchestrator/risk-engine.js';
 
-describe('RiskManager', () => {
+describe('RiskEngine', () => {
   it('computes drawdown from real equity deltas', () => {
-    const rm = new RiskManager();
+    const rm = new RiskEngine();
     rm.updateDrawdown(10000, 10000);
     expect(rm.getCurrentDrawdownPercent()).toBe(0);
     rm.updateDrawdown(9500, 10000);
@@ -11,7 +11,7 @@ describe('RiskManager', () => {
   });
 
   it('only tracks the worst drawdown, not rebounds', () => {
-    const rm = new RiskManager();
+    const rm = new RiskEngine();
     rm.updateDrawdown(10000, 10000);
     rm.updateDrawdown(9000, 10000);
     rm.updateDrawdown(11000, 10000);

@@ -1,4 +1,6 @@
 import type { CexRadarEntry } from '../../adapters/cex-radar-adapter.js';
+import type { LaunchIntelligenceInput } from '../../domain/launch-intelligence.js';
+import type { TokenGatebookInput } from '../../domain/token-gatebook.js';
 
 export type CallDomain = 'MEME_SOLANA' | 'MEME_EVM' | 'PERPS' | 'NFT' | 'LP_METEORA' | 'LP_ROBINHOOD' | 'PREDICTION' | 'CT_ALPHA' | 'WHALE';
 
@@ -89,6 +91,10 @@ export interface CallCardPayload {
   whaleReport?: WhaleReport;
   /** CEX Radar: OI/funding/L-S/whale prints context from Binance/Bybit/OKX (card info only, never a filter). */
   cexRadar?: CexRadarEntry[];
+  /** Deterministic launch evidence from the scout snapshot; consumed by decision-engine vetoes. */
+  launchEvidence?: LaunchIntelligenceInput;
+  /** Deterministic gatebook evidence from the scout snapshot; consumed by decision-engine vetoes. */
+  gatebookEvidence?: TokenGatebookInput;
 }
 
 export interface AgentReport<TSignal = unknown> {

@@ -48,7 +48,7 @@ export function loadApiKeyPool(baseVar: string, chainHint?: string): ApiKeyPool 
   const singleBackup = process.env[`${baseVar}_BACKUP`] || process.env[`${baseVar.replace(/_API_KEY$/, '')}_BACKUP`] || process.env[`${baseVar}_BACKUP_KEY`] || '';
   const commaSeparated = process.env[`${baseVar}S`] || process.env[`${baseVar.replace(/_API_KEY$/, '')}_API_KEYS`] || '';
 
-  // Collect indexed backup keys (e.g. GMGN_API_KEY_1, OPENSEA_API_KEY_1 ... 20)
+  // Collect indexed backup keys (e.g. GMGN_API_KEY_1, GOPLUS_API_KEY_1 ... 20)
   const indexedKeys: string[] = [];
   for (let i = 1; i <= 20; i++) {
     const k1 = process.env[`${baseVar}_${i}`];
@@ -59,7 +59,7 @@ export function loadApiKeyPool(baseVar: string, chainHint?: string): ApiKeyPool 
     if (k3) indexedKeys.push(k3);
   }
 
-  // Collect chain-specific keys (e.g. GMGN_API_KEY_ETH, OPENSEA_API_KEY_BASE, etc.)
+  // Collect chain-specific keys (e.g. GMGN_API_KEY_ETH, GMGN_API_KEY_BASE, etc.)
   const chainKeys: string[] = [];
   const normalizedHint = chainHint ? chainHint.toUpperCase().replace(/[-_]/g, '') : '';
   let hintKey: string | undefined;

@@ -183,7 +183,7 @@ describe('WalletTracker.scanEvmHoldings', () => {
       walletService: makeWalletService(),
       evmBalanceReader: async (_chain, token) => (token === 'TOK1' ? 1000n : 0n),
     });
-    expect(await tracker.scanEvmHoldings()).toEqual([{ address: 'TOK1' }]);
+    expect(await tracker.scanEvmHoldings()).toEqual([{ chain: 'robinhood', address: 'TOK1' }]);
   });
 
   it('fails closed to [] when the balance reader reports a failed read (null)', async () => {

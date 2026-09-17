@@ -130,7 +130,7 @@ describe('TelegramService & Standalone Broadcasting', () => {
     expect(capturedThreadId).toBe(201);
   });
 
-  it('bootstrapTelegramTopics() auto-provisions all 17 channels', async () => {
+  it('bootstrapTelegramTopics() auto-provisions the 8 active channels', async () => {
     const createdNames: string[] = [];
     global.fetch = vi.fn().mockImplementation(async (url: string, init: any) => {
       const body = JSON.parse(init.body);
@@ -151,16 +151,15 @@ describe('TelegramService & Standalone Broadcasting', () => {
     });
 
     const results = await service.bootstrapTelegramTopics();
-    expect(Object.keys(results).length).toBe(17);
+    expect(Object.keys(results).length).toBe(8);
     expect(results['call-meme-solana']).toBeDefined();
+    expect(results['call-meme-robinhood']).toBeDefined();
     expect(results['call-meme-base']).toBeDefined();
     expect(results['call-meme-eth']).toBeDefined();
-    expect(results['call-meme-ink']).toBeDefined();
-    expect(results['call-nft-hyperevm']).toBeDefined();
-    expect(results['call-whale-tracking']).toBeDefined();
-    expect(results['call-prediction-markets']).toBeDefined();
+    expect(results['call-meme-bsc']).toBeDefined();
     expect(results['call-ct-alpha']).toBeDefined();
     expect(results['opencatz-control-room']).toBeDefined();
+    expect(results['audit-on-demand']).toBeDefined();
   });
 
   it('broadcastSignalCall() formats DexScreener chart links and dispatches call card', async () => {

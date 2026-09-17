@@ -2,7 +2,7 @@ import { GMGNAdapter, GMGNRawToken, SolChain } from '../../adapters/gmgn-adapter
 import { globalPriceFeedService } from '../../services/price-feed-service.js';
 import { StrategyEngine } from '../../orchestrator/strategy-engine.js';
 import type { ScreeningAgent, AgentReport, CallCardPayload } from '../shared/agent-contract.js';
-import { createDedupe, preFilterToken, detectMemeSignal, volume24hOf, buildSignalBoostMap, applySignalBoost, toStrategyGmgn, buildMemeThesis, isGraduatedToken, validateMemeConfigUpdate, securityAuditGate, buildTrackAccumulation, trackAccumulationLabel } from '../shared/gmgn-meme-helpers.js';
+import { createDedupe, preFilterToken, detectMemeSignal, volume24hOf, buildSignalBoostMap, applySignalBoost, toStrategyGmgn, buildMemeThesis, isGraduatedToken, validateMemeConfigUpdate, securityAuditGate, buildTrackAccumulation, trackAccumulationLabel, buildLaunchEvidence, buildGatebookEvidence } from '../shared/gmgn-meme-helpers.js';
 import type { SignalBoostMap, TrackAccumulation } from '../shared/gmgn-meme-helpers.js';
 
 export interface BaseSignal {
@@ -55,7 +55,7 @@ const DEFAULT_CONFIG: BaseScreeningConfig = {
 };
 
 export class BaseScreeningAgent implements ScreeningAgent<BaseSignal> {
-  readonly domain = 'meme-base';
+  readonly domain: string = 'meme-base';
   private gmgn: GMGNAdapter;
   private priceFeed = globalPriceFeedService;
   private strategyEngine: StrategyEngine;
@@ -71,9 +71,9 @@ export class BaseScreeningAgent implements ScreeningAgent<BaseSignal> {
   public updateConfig(partial: Record<string, unknown>): { applied: Record<string, unknown>; rejected: string[] } {
     const { applied, rejected } = validateMemeConfigUpdate(partial);
     if (Array.isArray(partial.chains)) {
-      const validChains = partial.chains.filter((c): c is SolChain => ['base'].includes(c as any));
+      const validChains = partial.chains.filter((c): c is SolChain => ['base', 'bsc'].includes(c as any));
       if (validChains.length > 0) applied.chains = validChains;
-      else rejected.push('chains: must be ["base"]');
+      else rejected.push('chains: must be ["base"] or ["bsc"]');
     }
     this.config = { ...this.config, ...applied };
     if (Object.keys(applied).length > 0) {
@@ -211,12 +211,14 @@ export class BaseScreeningAgent implements ScreeningAgent<BaseSignal> {
     let smStr = t.smartDegenCount || t.renownedCount ? `Smart: ${t.smartDegenCount || 0} degen | ${t.renownedCount || 0} renowned` : 'None';
     if (trackLabel) smStr = `${smStr} | ${trackLabel}`;
 
+    const primaryChain = this.config.chains[0] ?? 'base';
+    const isBsc = primaryChain === 'bsc';
     return {
       domain: 'MEME_EVM',
       title: `${t.name} (${t.symbol})`,
       symbol: t.symbol,
       contractAddress: t.address,
-      network: 'Base L2',
+      network: isBsc ? 'BNB Smart Chain' : 'Base L2',
       tokenAge: ageHours !== null ? `${ageHours.toFixed(1)}h` : 'N/A',
       priceUsd: t.priceUsd > 0 ? `$${t.priceUsd}` : 'N/A',
       marketCap: t.marketCapUsd > 0 ? `$${(t.marketCapUsd/1000).toFixed(1)}k` : 'N/A',
@@ -234,13 +236,15 @@ export class BaseScreeningAgent implements ScreeningAgent<BaseSignal> {
       confidenceScore: confidence,
       securityScore: rugStr,
       aiThesis: thesis,
-      gmgnUrl: `https://gmgn.ai/base/token/${t.address}`,
-      dexScreenerUrl: `https://dexscreener.com/base/${t.address}`,
-      rugcheckUrl: `https://gopluslabs.io/token-security/8453/${t.address}`,
+      gmgnUrl: `https://gmgn.ai/${primaryChain}/token/${t.address}`,
+      dexScreenerUrl: `https://dexscreener.com/${primaryChain}/${t.address}`,
+      rugcheckUrl: `https://gopluslabs.io/token-security/${isBsc ? '56' : '8453'}/${t.address}`,
       securityAuditPassed: true,
       socialHypeScore: confidence,
       liquidityUsd: t.liquidityUsd,
       volume1hUsd: t.volume1hUsd > 0 ? t.volume1hUsd : volume24hOf(t) / 24,
+      launchEvidence: buildLaunchEvidence(t),
+      gatebookEvidence: buildGatebookEvidence(t),
     };
   }
 

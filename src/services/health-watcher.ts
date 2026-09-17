@@ -20,10 +20,8 @@ export class HealthWatcherService {
 
   private initializeAgents() {
     const subAgents = [
-      'meme-solana', 'meme-robinhood', 'meme-base', 'meme-eth', 'meme-ink',
-      'lp-solana', 'lp-robinhood',
-      'nft-eth', 'nft-base', 'nft-ink', 'nft-robinhood', 'nft-hyperevm',
-      'perps', 'prediction', 'ct-alpha'
+      'meme-solana', 'meme-robinhood', 'meme-base', 'meme-eth', 'meme-bsc',
+      'ct-alpha'
     ];
     subAgents.forEach((domain) => {
       this.agentMap.set(domain, {

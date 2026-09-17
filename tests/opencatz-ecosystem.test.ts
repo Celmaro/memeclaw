@@ -3,10 +3,6 @@ import { SwarmConsensusEngine } from '../src/orchestrator/swarm-consensus.js';
 import { SolanaScreeningAgent } from '../src/agents/meme-solana/solana-screening-agent.js';
 import { RobinhoodScreeningAgent } from '../src/agents/meme-robinhood/robinhood-screening-agent.js';
 import type { GMGNRawToken } from '../src/adapters/gmgn-adapter.js';
-import { PerpsScreeningAgent } from '../src/agents/perps/perps-screening-agent.js';
-import { HyperliquidAdapter } from '../src/adapters/hyperliquid-adapter.js';
-import { NFTEthAgent } from '../src/agents/nft-eth/nft-eth-agent.js';
-import { PolymarketAgent } from '../src/agents/prediction/polymarket-agent.js';
 import { PriceAlertService } from '../src/services/price-alert-service.js';
 import { PositionManager } from '../src/position/position-manager.js';
 
@@ -94,38 +90,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     expect(reports.length).toBe(0);
   });
 
-  it('4. Whale Tracking Agent: fail-closed tanpa network — zero reports', async () => {
-    const hlAdapter = new HyperliquidAdapter();
-    const agent = new PerpsScreeningAgent(hlAdapter);
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('no network')));
-    const reports = await agent.runScreeningPass();
-    vi.unstubAllGlobals();
-    expect(Array.isArray(reports)).toBe(true);
-    expect(reports.length).toBe(0);
-  }, 30000);
-
-  it('5. EVM NFT Agent: Should evaluate NFT Momentum & Whale Sweeps', async () => {
-    const agent = new NFTEthAgent();
-    const reports = await agent.runScreeningPass();
-    expect(Array.isArray(reports)).toBe(true);
-    // With real API: returns results only when OPENSEA_API_KEY is configured
-    // Without API key: returns empty array (no fake data)
-    if (reports.length > 0) {
-      // Contract shape: AgentReport<NFTSnipingReport>
-      expect(reports[0].confidence).toBeGreaterThanOrEqual(80);
-      expect(reports[0].signal.isFloorSurge).toBe(true);
-      expect(reports[0].payload?.domain).toBe('NFT-ETH');
-    }
-  });
-
-  it('6. Polymarket Prediction Agent: no-op (screening dinonaktifkan) — selalu [] tanpa request API', async () => {
-    const agent = new PolymarketAgent();
-    const reports = await agent.runScreeningPass();
-    expect(Array.isArray(reports)).toBe(true);
-    expect(reports.length).toBe(0);
-  });
-
-  it('7. Price Alert Service: Should parse natural language alert expressions', () => {
+  it('4. Price Alert Service: Should parse natural language alert expressions', () => {
     const alertService = new PriceAlertService();
     const parsed = alertService.parseNaturalLanguageAlert('opencatz kabari kalau BTC 70000');
     expect(parsed).not.toBeNull();
@@ -134,44 +99,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     expect(parsed?.direction).toBe('ABOVE');
   });
 
-  it('8. Position Manager: Should trigger TP milestones (+30%, +50%) and Floor Drop (-20%) for NFT positions', () => {
-    const manager = new PositionManager();
-    manager.addNftPosition({
-      id: 'nft_pudgy_1234',
-      collectionSlug: 'pudgypenguins',
-      collectionName: 'Pudgy Penguins',
-      tokenId: '1234',
-      entryFloorEth: 10.0,
-      currentFloorEth: 10.0,
-      highestFloorEth: 10.0,
-      salesVelocity1h: 20,
-    });
-
-    // Test +30% TP1 Milestone
-    const tp1Res = manager.updateNftPosition('nft_pudgy_1234', 13.5, 25);
-    expect(tp1Res.triggerAlert).toBe(true);
-    expect(tp1Res.type).toBe('MILESTONE');
-    expect(tp1Res.reason).toContain('TP1 MILESTONE (+30%)');
-
-    // Test -20% Floor Drop Warning
-    manager.addNftPosition({
-      id: 'nft_azuki_5678',
-      collectionSlug: 'azuki',
-      collectionName: 'Azuki',
-      tokenId: '5678',
-      entryFloorEth: 10.0,
-      currentFloorEth: 10.0,
-      highestFloorEth: 10.0,
-      salesVelocity1h: 20,
-    });
-
-    const dropRes = manager.updateNftPosition('nft_azuki_5678', 7.5, 10);
-    expect(dropRes.triggerAlert).toBe(true);
-    expect(dropRes.type).toBe('CRITICAL');
-    expect(dropRes.reason).toContain('FLOOR DROP WARNING (-20%)');
-  });
-
-  it('9. Twitter Service: fail-closed without key, real data with key', async () => {
+  it('5. Twitter Service: fail-closed without key, real data with key', async () => {
     const { TwitterService } = await import('../src/services/twitter-service.js');
 
     // Without a TWEX key -> no fabricated tweets
@@ -199,7 +127,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     expect(hype.sentimentScore).toBeGreaterThanOrEqual(0);
   });
 
-  it('10. Trade Journal Service: starts empty and records real trades', async () => {
+  it('6. Trade Journal Service: starts empty and records real trades', async () => {
     const { TradeJournalService } = await import('../src/services/trade-journal-service.js');
     const journal = new TradeJournalService();
     const stats = journal.getSummaryStats();
@@ -233,7 +161,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     expect(csv).toContain('REALTOKEN');
   });
 
-  it('11. StateStore: Should perform atomic file save and load for persistent state (isolated temp file)', async () => {
+  it('7. StateStore: Should perform atomic file save and load for persistent state (isolated temp file)', async () => {
     const path = await import('node:path');
     const fs = await import('node:fs');
     const { StateStore } = await import('../src/services/state-store.js');
@@ -248,7 +176,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
   });
 
-  it('12. Smart CT Alpha Agent: fail-closed without key, real signals with real tweets', async () => {
+  it('8. Smart CT Alpha Agent: fail-closed without key, real signals with real tweets', async () => {
     const { CTAlphaAgent } = await import('../src/agents/ct-alpha/ct-alpha-agent.js');
 
     // Without a TWEX key -> no fabricated tweets -> no signals
@@ -278,7 +206,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     }
   }, 15000);
 
-  it('13. Relay Adapter: Should calculate cross-chain bridge intent quotes via Relay.link', async () => {
+  it('9. Relay Adapter: Should calculate cross-chain bridge intent quotes via Relay.link', async () => {
     const { RelayAdapter } = await import('../src/adapters/relay-adapter.js');
     const adapter = new RelayAdapter();
     const quote = await adapter.getBridgeQuote({
@@ -295,7 +223,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     expect(quote.relayWebUrl).toContain('relay.link/bridge');
   });
 
-  it('14. Relay Adapter Swap: Should calculate same-chain token swap quotes via Relay.link', async () => {
+  it('10. Relay Adapter Swap: Should calculate same-chain token swap quotes via Relay.link', async () => {
     const { RelayAdapter } = await import('../src/adapters/relay-adapter.js');
     const adapter = new RelayAdapter();
     const quote = await adapter.getSwapQuote({
@@ -313,7 +241,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     expect(quote.relayWebUrl).toContain('relay.link/swap');
   });
 
-  it('15. Relay Adapter Send: Should calculate token transfer quotes to recipient wallet via Relay.link', async () => {
+  it('11. Relay Adapter Send: Should calculate token transfer quotes to recipient wallet via Relay.link', async () => {
     const { RelayAdapter } = await import('../src/adapters/relay-adapter.js');
     const adapter = new RelayAdapter();
     const quote = await adapter.getSendQuote({
@@ -331,7 +259,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     expect(quote.relayWebUrl).toContain('relay.link');
   });
 
-  it('16. Wallet Service: Should store private keys and derive EVM and Solana wallet addresses', async () => {
+  it('12. Wallet Service: Should store private keys and derive EVM and Solana wallet addresses', async () => {
     const { WalletService } = await import('../src/services/wallet-service.js');
     const ws = new WalletService();
 
@@ -344,7 +272,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     expect(typeof bal.balance).toBe('number');
   }, 15000);
 
-  it('17. Solana Adapter Direct Execution: realistic dry-run via real Jupiter quote', async () => {
+  it('13. Solana Adapter Direct Execution: realistic dry-run via real Jupiter quote', async () => {
     const { SolanaTradeAdapter } = await import('../src/adapters/solana-adapter.js');
     const adapter = new SolanaTradeAdapter();
     const swapRes = await adapter.swapToken({
@@ -356,9 +284,9 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     // Network-dependent: if the real Jupiter quote fails (offline/rate-limited), the dry-run
     // must report success=false — not fail the test.
     if (!swapRes.error) expect(swapRes.success).toBe(true);
-  });
+  }, 15000);
 
-  it('18. EVM Adapter Direct Execution: Should simulate sendToken and swapToken via WalletService', async () => {
+  it('14. EVM Adapter Direct Execution: Should simulate sendToken and swapToken via WalletService', async () => {
     const { EVMTradeAdapter } = await import('../src/adapters/evm-adapter.js');
     const { WalletService } = await import('../src/services/wallet-service.js');
     const adapter = new EVMTradeAdapter();
@@ -390,7 +318,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     expect(swapRes.outputTokens).toBeGreaterThan(0);
   });
 
-  it('18b. EVM Adapter Dry-Run Buy: realistic Uniswap API quote (simulated, no broadcast)', async () => {
+  it('14b. EVM Adapter Dry-Run Buy: realistic Uniswap API quote (simulated, no broadcast)', async () => {
     const { EVMTradeAdapter } = await import('../src/adapters/evm-adapter.js');
     const adapter = new EVMTradeAdapter();
     const prevKey = process.env.UNISWAP_API_KEY;
@@ -424,7 +352,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     }
   });
 
-  it('19. OpenSea Adapter DEX Aggregator & Agent Discovery: Should calculate swap quotes and return agent tools manifest', async () => {
+  it('15. OpenSea Adapter DEX Aggregator & Agent Discovery: Should calculate swap quotes and return agent tools manifest', async () => {
     const { OpenSeaAdapter } = await import('../src/adapters/opensea-adapter.js');
     const adapter = new OpenSeaAdapter();
 
@@ -444,7 +372,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     expect(Array.isArray(manifest.capabilities)).toBe(true);
   });
 
-  it('20. Tool Registry & Hub Control: Should execute sub-agent pause, resume, and risk limit tools', async () => {
+  it('16. Tool Registry & Hub Control: Should execute sub-agent pause, resume, and risk limit tools', async () => {
     const { ToolRegistry } = await import('../src/orchestrator/tool-registry.js');
     const { OpenCatzHub } = await import('../src/orchestrator/hub.js');
     const { AIService } = await import('../src/services/ai-service.js');
@@ -472,7 +400,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     expect(hub.getRiskManager().getRiskState().maxDrawdownLimitPct).toBe(40);
   });
 
-  it('21. Cron Scheduler: Should parse natural language intervals and store active schedules', async () => {
+  it('17. Cron Scheduler: Should parse natural language intervals and store active schedules', async () => {
     const { CronSchedulerService } = await import('../src/services/cron-scheduler.js');
     const scheduler = new CronSchedulerService();
 
@@ -488,7 +416,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     scheduler.removeSchedule(task.id);
   });
 
-  it('22. Session Memory: Should record audits and perform fast zero-LLM-token keyword search', async () => {
+  it('18. Session Memory: Should record audits and perform fast zero-LLM-token keyword search', async () => {
     const { SessionMemoryService } = await import('../src/services/session-memory.js');
     const memory = new SessionMemoryService();
 
@@ -500,7 +428,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     expect(searchRes[0].symbol).toBe('PEPE');
   });
 
-  it('23. Swarm Learning Engine: Should record signal calls and recalibrate weights on TP hits', async () => {
+  it('19. Swarm Learning Engine: Should record signal calls and recalibrate weights on TP hits', async () => {
     const path = await import('path');
     const { SwarmLearningEngine } = await import('../src/orchestrator/swarm-learning.js');
     const testDbPath = path.join(process.cwd(), 'database', `test_swarm_learning_${Date.now()}.json`);
@@ -514,7 +442,7 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     expect(engine.getWeights().smartMoneyWeight).toBeGreaterThan(initialWeight);
   });
 
-  it('24. Sub-Agent Domain Normalization: Should correctly synchronize pause/resume across aliases', async () => {
+  it('20. Sub-Agent Domain Normalization: Should correctly synchronize pause/resume across aliases', async () => {
     const { OpenCatzHub } = await import('../src/orchestrator/hub.js');
     const hub = new OpenCatzHub();
 
@@ -527,18 +455,18 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     expect(hub.isAgentActive('solana-meme')).toBe(true);
   });
 
-  it('25. ApiKeyGuard: Should halt sub-agents with missing required API keys', async () => {
+  it('21. ApiKeyGuard: Should halt sub-agents with missing required API keys', async () => {
     const { ApiKeyGuardService } = await import('../src/services/api-key-guard.js');
     const guard = new ApiKeyGuardService();
 
-    delete process.env.OPENSEA_API_KEY;
-    const res = guard.checkDomainKeys('nft');
+    delete process.env.TWEX_API_KEY;
+    const res = guard.checkDomainKeys('ct-alpha');
     expect(res.ready).toBe(false);
-    expect(res.missingKeys).toContain('OPENSEA_API_KEY');
+    expect(res.missingKeys).toContain('TWEX_API_KEY');
     expect(res.statusMessage).toContain('HALTED');
   });
 
-  it('26. ApiKeyGuard & ToolRegistry: Should set API key at runtime and unblock sub-agent', async () => {
+  it('22. ApiKeyGuard & ToolRegistry: Should set API key at runtime and unblock sub-agent', async () => {
     const { ApiKeyGuardService } = await import('../src/services/api-key-guard.js');
     const { ToolRegistry } = await import('../src/orchestrator/tool-registry.js');
 
@@ -546,15 +474,15 @@ describe('🐾 OPENCATZ MULTI-AGENT SYSTEM TEST SUITE', () => {
     const guard = new ApiKeyGuardService();
     const registry = new ToolRegistry();
 
-    const toolRes = await registry.executeToolCall('set_api_key', { keyName: 'OPENSEA_API_KEY', keyValue: 'test_opensea_key_123' });
+    const toolRes = await registry.executeToolCall('set_api_key', { keyName: 'TWEX_API_KEY', keyValue: 'test_twex_key_123' });
     expect(toolRes.success).toBe(true);
 
-    const res = guard.checkDomainKeys('nft');
+    const res = guard.checkDomainKeys('ct-alpha');
     expect(res.ready).toBe(true);
-    expect(process.env.OPENSEA_API_KEY).toBe('test_opensea_key_123');
+    expect(process.env.TWEX_API_KEY).toBe('test_twex_key_123');
   });
 
-  it('27. Auto-execute: hub state reflects enablement', async () => {
+  it('23. Auto-execute: hub state reflects enablement', async () => {
     const { OpenCatzHub } = await import('../src/orchestrator/hub.js');
     const hub = new OpenCatzHub();
     hub.setAutoExecute('meme-solana', true, 0.1);

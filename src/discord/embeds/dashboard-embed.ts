@@ -18,7 +18,6 @@ export interface DashboardEmbedOptions {
 
 export function createDashboardComponents(hub: OpenCatzHub, opts: DashboardEmbedOptions = {}) {
   const isTwexSet = Boolean(process.env.TWEX_API_KEY);
-  const isOpenSeaSet = Boolean(process.env.OPENSEA_API_KEY);
   const isLlmSet = Boolean(process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY);
 
   const getStatusBadge = (domain: string) => (hub.isAgentActive(domain) ? '`🟢 RUNNING`' : '`🔴 PAUSED`');
@@ -46,19 +45,16 @@ export function createDashboardComponents(hub: OpenCatzHub, opts: DashboardEmbed
         inline: false,
       },
       {
-        name: '🐱 24/7 Specialist Sub-Agents Status (15 Agents Active)',
+        name: '🐱 24/7 Specialist Sub-Agents Status (6 Scouts)',
         value:
-          `**🚀 Meme Hunters:** SOL ${getStatusBadge('meme-solana')} • RH ${getStatusBadge('meme-robinhood')} • BASE ${getStatusBadge('meme-base')} • ETH ${getStatusBadge('meme-eth')} • INK ${getStatusBadge('meme-ink')}\n` +
-          `**💧 Liquidity & Yield:** SOL LP ${getStatusBadge('lp-solana')} • RH LP ${getStatusBadge('lp-robinhood')}\n` +
-          `**🔮 NFT Division (OpenSea EVM):** ETH ${getStatusBadge('nft-eth')} • BASE ${getStatusBadge('nft-base')} • INK ${getStatusBadge('nft-ink')} • RH ${getStatusBadge('nft-robinhood')} • HYPER ${getStatusBadge('nft-hyperevm')}\n` +
-          `**🎯 Oracles & Alpha:** 🐋 Perps ${getStatusBadge('perps')} • 🎯 Poly ${getStatusBadge('prediction')} • ☀️ CT ${getStatusBadge('ct-alpha')}`,
+          `**🚀 Meme Hunters:** SOL ${getStatusBadge('meme-solana')} • RH ${getStatusBadge('meme-robinhood')} • BASE ${getStatusBadge('meme-base')} • ETH ${getStatusBadge('meme-eth')} • BSC ${getStatusBadge('meme-bsc')}\n` +
+          `**☀️ Smart CT Alpha:** ${getStatusBadge('ct-alpha')}`,
         inline: false,
       },
       {
         name: '🌐 Connected API Keys & Social Intelligence',
         value:
           `• 🐦 **Twitter/X Intelligence:** ${isTwexSet ? '`🟢 CONFIGURED`' : '`⚪ NOT CONFIGURED (fail-closed)`'}\n` +
-          `• 🖼️ **OpenSea NFT Stream API:** ${isOpenSeaSet ? '`🟢 CONFIGURED`' : '`⚪ NOT CONFIGURED (fail-closed)`'}\n` +
           `• 🧠 **LLM AI Reasoning Engine:** ${isLlmSet ? '`🟢 CONFIGURED`' : '`⚪ NOT CONFIGURED`'}`,
         inline: false,
       },
@@ -76,7 +72,7 @@ export function createDashboardComponents(hub: OpenCatzHub, opts: DashboardEmbed
 
   // Dropdown Select Menu to Toggle Agents
   const CATEGORY_EMOJI: Record<string, string> = {
-    MEME: '🌸', LP: '🌊', PERPS: '🐋', NFT: '🔮', PREDICTION: '🎯', CT_ALPHA: '☀️',
+    MEME: '🌸', CT_ALPHA: '☀️',
   };
   const agentSelect = new StringSelectMenuBuilder()
     .setCustomId('select_toggle_agent')
