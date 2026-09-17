@@ -14,17 +14,14 @@ Date: 2026-09-15
 
 ## Catégories utilisées
 
-- `Take`: adopter directement, souvent spec officielle ou API.
-- `Copy`: dupliquer du code. Attention aux licences.
-- `Borrow`: reprendre l'idée ou le pattern sans copier le code.
-- `Reference`: source d'inspiration ou de comparaison, pas intégrée directement.
-- `Skip`: pas utile maintenant.
-- `Hard No`: écarté, hors scope ou risqué.
-- `Study`: candidat à une étude technique plus profonde avant tout choix `Take` ou `Borrow`; aucune dépendance ni copie n'est autorisée pendant cette phase.
+- `Adopt`: intégrer comme contrat, SDK, provider ou dépendance directe après audit ciblé.
+- `Adapt`: réimplémenter le mécanisme ou le pattern dans notre propre code et notre propre surface d'API.
+- `Study`: lire, comparer, tester ou prototyper avant de décider; aucune dépendance directe.
+- `Skip`: hors scope, fragmentaire, risqué, inutile ou en doublon du stack existant.
 
 Note usage personnel: les licences et les langages ne sont plus des critères de blocage. Les verdicts restent basés sur l'utilité fonctionnelle, le risque runtime, la qualité du code et le scope memecoin.
 
-Règle d'adaptation multi-chain: si un repo est intéressant mais construit pour une seule chain, on évalue toujours sa portabilité vers nos chains actives: Solana/Pump.fun, Robinhood/Fomo, Base, BSC. Un verdict peut donc être `Borrow Solana` + `Adaptable RH` + `Reference Base/BSC` ou `Hard No BSC` si la logique dépend d'un contrat unique non portable.
+Règle d'adaptation multi-chain: si un repo est intéressant mais construit pour une seule chain, on évalue toujours sa portabilité vers nos chains actives: Solana/Pump.fun, Robinhood/Fomo, Base, BSC. Un verdict peut donc être `Adapt Solana` + `Adaptable RH` + `Study Base/BSC` ou `Skip BSC` si la logique dépend d'un contrat unique non portable.
 
 ## Consignes et fichiers de contexte
 
@@ -43,7 +40,43 @@ Le projet a déjà l'essentiel de la couche GMGN basique: rank, trenches, token 
 - le scoring wallets/copy-trade,
 - la mémoire agent et l'audit des décisions.
 
-Peu de `Copy` direct: la plupart des sources utiles sont `Take`, `Borrow` ou `Reference`.
+Peu de `Adopt` direct: la plupart des sources utiles sont `Adapt` (réimplémentation interne) ou `Study` (recherche avant branchement).
+
+---
+
+## Roadmap v3 (2026-09-17)
+
+Priorités réécrites après relecture de la liste dédupliquée et reclassification `Adopt / Adapt / Study / Skip`.
+
+### P0 - Fondation actuelle, à finaliser
+
+- `meme-solana`, `meme-robinhood`, `meme-base`, `meme-bsc`, `meme-eth`, `ct-alpha` actifs dans le registry; retirer `meme-ink`.
+- Conserver `gmgn-adapter` + callout comme hub d'intel; ajouter source-health, event envelope, dedupe et replay.
+- Renforcer `token-gatebook` et `risk-engine` avec les mécanismes `Adapt` prioritaires: mint/freeze/concentration, bundles, liquidity lock, metadata, holder concentration, smart-money convergence.
+- Garder la règle: gates déterministes veto, LLM propose/explique, signer isolé.
+
+### P1 - Tape RH/Fomo, Solana execution read-only et CT Alpha
+
+- Reprendre les mécanismes de `fomopulse-robinhood-chain-tape`, `fomo-robinhood-radar`, `copy`, `pons-sniper` et `fomo-solana-rh-listeners`: reconstruction des fills, provider Pons V1/V2, dossier deployer, scoring wallet/token, règles de copy paper.
+- Brancher `pumpfun-bonkfun-bot`, `qlo`, `loxley`, `stampede`, `aegis` et `MEERKAT` en patterns internes: refresh curve avant sell, priority fee borné, force-close dev-sell, rotation wallets, evidence-first scoring.
+- Activer `ct-alpha` avec ingestion contrôlée (`Agent-Reach`, `world-intel-mcp`, `last30days`, `claimchain`) et vérification des claims LLM.
+
+### P2 - Canary live Solana/RH après paper
+
+- Auditer puis intégrer `pumpdotfun-sdk` et `jito-ts` derrière `ExecutionProvider`.
+- Ajouter `GARCHMethod` pour le sizing vol-targeted, `tradememory-protocol` pour l'audit et le recall pondéré, `million`/`Smart-Money-Tracker` pour le deck wallet/positions.
+- Passer en SHADOW puis paper sur RH/Fomo; aucune clé live tant que replay, chaos RPC, emergency sell et reconciliation ne passent pas.
+
+### P3 - Base et BSC
+
+- Ports EVM avec viem/nonce manager, adaptateurs DexScreener/DexPaprika/Bitquery/Codex en fallback.
+- BSC: `4Meme-Pilot` et `bsc-fourmeme-bot` pour la config launchpad, sans bundlers/volume.
+- Base: uniswap v2/v3 patterns, launchpad listeners, Base MCP en Study.
+
+### P4 - Étude continue
+
+- `Study` backlog: indexeurs historiques (`carbon`, `squid-sdk`, `cryo`, `messari/subgraphs`), data lakes, backtest sans lookahead, simulation personas, futures wallets leaders.
+- `Skip` restera fermé: LP/yield, NFT, Polymarket, perps, CEX derivatives, bundlers, volume bots, scrape fragile et dead sites.
 
 ---
 
@@ -869,137 +902,68 @@ Memeclaw doit être un système de trading déterministe assisté par LLM, pas u
 
 ## Registre final exhaustif des décisions
 
-Cette section est la décision finale pour **toutes les sources du corpus unique**. Les tableaux précédents gardent les détails de lecture; cette table donne l'action opérationnelle. `Copy` signifie uniquement copie autorisée par licence et après tests; il ne signifie pas fork aveugle. `Borrow` signifie réimplémenter le mécanisme avec notre propre code. `Take` signifie adopter une spécification ou un service comme contrat, pas copier son implémentation.
+Cette section est la décision finale pour **toutes les sources du corpus unique**, réécrite avec la classification v3: `Adopt`, `Adapt`, `Study`, `Skip`. Les anciennes tables intermédiaires du rapport sont des journaux de lecture; la présente section et la `Master Classification v3` plus bas font foi pour la décision opérationnelle.
 
-### Take
+### Adopt
 
-| Source | Décision précise |
-|---|---|
-| GMGN Agent API | Port officiel principal pour market intel, ranking, token info, security et smart money. |
-| GMGN Callout/OpenAPI | Port officiel d'événements; à brancher derrière dedupe et source-health. |
-| Solana Web3.js | SDK bas niveau après audit de version; pas le moteur de stratégie. |
-| viem | SDK EVM pour Robinhood/Fomo, Base et BSC, avec simulation et nonce manager. |
-| Postgres + Redis + object storage | Contrat de persistance retenu par l'architecture finale. |
+Intégrer directement comme contrat, SDK, provider ou dépendance après audit ciblé. Peu d'éléments passent en `Adopt`: le corpus justifie surtout de réimplémenter des mécanismes, pas de prendre des dépendances larges.
 
-### Copy autorisé et limité
+- GMGN Agent API et GMGN Callout/OpenAPI: port officiel principal pour market intel, ranking, token info, security, smart money et événements.
+- `docs.codex.io/networks`: provider GraphQL multi-chain de secours pour paires, wallets et events.
+- `mcp.bitquery.io`: provider MCP multi-chain pour trades, OHLC, market cap et wallet PnL, derrière source-health et dedupe.
+- `api.dexpaprika.com`: provider REST/SSE secondaire pour paires/pools EVM et Solana.
+- `rckprtr/pumpdotfun-sdk`: SDK Pump.fun candidat derrière `ExecutionProvider`, après audit du program et de la custody.
+- `jito-labs/jito-ts`: SDK bundles/tips pour l'exécution Solana protégée, isolé derrière un executor dédié.
 
-| Source | Ce qui peut être copié | Limite |
-|---|---|---|
-| `vybenetwork/solana-top-holders-api` | Aucun code par défaut. | Pas de licence exploitable; seulement si une licence et fichiers sont vérifiés plus tard. |
-| Repos MIT du corpus | Tests ou petits utilitaires isolés seulement après revue de licence, attribution et adaptation. | Aucun fork complet; conserver nos contrats et tests. |
+### Adapt
 
-Conclusion: le corpus ne justifie **aucun Copy massif**. Même les repos MIT proches sont meilleurs comme `Borrow`, car Memeclaw a déjà ses propres adapters, registry, risk et journal.
+Réimplémenter dans notre propre code les mécanismes ou patterns utiles. C'est la catégorie la plus large.
 
-### Borrow: mécanismes à réimplémenter
+- `cvxv666/fomo-robinhood-radar`, `itsnex1s/fomopulse-robinhood-chain-tape`, `chainstacklabs/fomo-solana-rh-listeners`, `lunarresearcher/copy`, `slightlyuseless/pons-sniper`: tape RH/Fomo, reconstruction des fills, provider Pons V1/V2, scoring wallet/token et règles de copy.
+- `chainstacklabs/pumpfun-bonkfun-bot`, `gustaffsonKotte/qlo`, `shmidtqq65/loxley`, `Argona7/stampede`, `0xjeffro/tx-parser`, `rimtoln/COPUMP`, `lyc0603/copytrading`: exécution/paper Pump.fun, graduation curve-time, force-close dev-sell, rotation/convergence, parsing tx et funding graph anti-manipulation.
+- `kocer6/MEERKAT`, `semkazz1/FlySwarm`, `0xuezhang985/wallet-convergence-alert`, `andreysuperiorgit/aegis`, `mnemox-ai/tradememory-protocol`: evidence-first scoring, cohortes wallets, convergence, gatebook fail-closed et mémoire/audit.
+- `GMGNAI/gmgn-skills`, `GMGNAI/skillmarket-demos` (aitrader + memex), `0xmfox/rabiq`, `h100envy/nerve`, `yllvar/gmgn-TrendingAnalyzer`, `LW-ARTS/trenchkit`, `crownobyl/trenchkit`: workflows GMGN, hard gates, scoring déterministe, dossier deployer RH, spine reflexes et discovery wallets SQL.
+- `openpumpio` (openpump + openclaw-agent), `zetryn-ai/ai-agent`, `thegreatola/memecoins-trading-agent`, `Denzz102/memecoin-agent`, `Benita2001/SpecterAI`, `alexskin/memeoy`, `MayurK-cmd/4Meme-Pilot`, `tow3web3/agentinu`, `meme-radar`: pipelines scouts -> risk -> alert -> journal, wallets/holders, paper-first et BSC 4.meme.
+- `manavaga/web3-signals-mcp`, `autonsol/sol-mcp`, `dynamolabs/solana-mcp`, `tony-42069/solana-mcp`, `kukapay/*` (pumpfun-wallets, rug-check, honeypot, whale-tracker, sentiment, indicators, dexscreener-trending): fusion de signaux, calibration, risk Solana et wrappers MCP à réimplémenter si besoin derrière nos adapters.
+- `PillCrew/claimchain`, `Panniantong/Agent-Reach`, `marc-shade/world-intel-mcp`, `mvanhorn/last30days-skill`, `kabbersokhi-boop/crypto-trend-hunter`, `nirholas/kol-quest`, `marksantiago290/KOLscan-leaderboard-scraping`: vérification de claims, ingestion sociale contrôlée, cache/stale et leaderboard KOL.
+- `build23w/fdv.lol`, `rimtoln/fletch`, `milesdeutscher/garchmethod`, `garchmethod`, `Kelows/million`, `Im-Madhur-Gupta/maverick`, `ricoboost/meme-coin-trading-bot`, `ironclad-protocol/solana-copy-trading-bot`, `sergafon/solana-copy-trading`, `dartkomnitibe/solana-meme-tool`, `soladdev/solana-meme-tool`, `natebag/TrenchTools`: scoring explainable, sizing GARCH, deck/copy/whale, cluster detection, submitter Jito, desk et vault.
+- `ArgosSystems/Smart-Money-Tracker`, `jamsturg/crypto-whale-tracker`, `warp-id/solana-trading-bot`, `wwwwwwworld/solana-trading-bot-v3`, `harutocodes/pumpfun-copytrade`, `1009682175845693/bsc-fourmeme-bot`, `dragon1086/prism-insight`, `jito-labs/jito-ts`, `Stormeye85/robinhood-token-sniper`, `Thorsten02041973/robinhood-cli`, `nansen-ai/nansen-cli`: tracker multi-chain, liste de paramètres d'exécution, copy fills, BSC FourMeme, prism insight, sniper RH et CLI ops.
+- `zostaff/ai-quant-researcher`, `zostaff/agent-arena`, `TauricResearch/TradingAgents`, `The-Swarm-Corporation/AutoHedge`, `HKUDS/Vibe-Trading`, `pgen0x/azimuth`, `akanz/onchain-trading-bot`, `mocasus/trade-agent`, `ygwyg/MAHORAGA`, `51bitquant/ai-hedge-fund-crypto`, `Tomortec/CryptoTradingAgents`, `ryan-yuuu/crypto-trading-arena`, `olaxbt/ai-market-maker`, `ginlix-ai/LangAlpha`, `FinStep-AI/ContestTrade`, `EthanAlgoX/LLM-TradeBot`, `danilobatson/ai-trading-agent-gemini`, `AmadeusGB/alpha-arena`, `LuckyOne7777/LLM-Trading-Lab`, `nautechsystems/nautilus_trader`, `asavinov/intelligent-trading-bot`, `freqtrade/freqtrade`, `JulienPlanchetCoineo/frostybot-js`, `TheGigaQuant/frostybot-js`, `ctubio/Krypto-trading-bot`, `GuntharDeNiro/gunbot-quant`: patterns de recherche, arena paper, débats analyste/risque, backtest et moteurs de trading à adapter sans dépendance live.
 
-| Source | Mécanisme retenu |
-|---|---|
-| `GMGNAI/gmgn-skills` | Workflows de due diligence token/dev/holders/smart money. |
-| `skillmarket-demos/aitrader` | Hard gates, SHADOW/LIVE, wallet evaluation. |
-| `skillmarket-demos/memex` | Score pondéré sans LLM et fail-closed. |
-| `0xuezhang985/wallet-convergence-alert` | Convergence de wallets suivis. |
-| `lunarresearcher/copy` | Paper engine, copy-trade et journal. |
-| `kocer6/MEERKAT` | Evidence-first token/wallet intelligence et relations. |
-| `semkazz1/FlySwarm` | Cohortes, funding graph, FIRE/WATCH/NOISE. |
-| `cvxv666/fomo-robinhood-radar` | Fomo profile vers wallet, provenance des fills, score trader. |
-| `itsnex1s/fomopulse-robinhood-chain-tape` | Tape RH/Fomo low-latency read-only. |
-| `gustaffsonKotte/qlo` | Graduation curve-time comme feature Pump.fun. |
-| `chainstacklabs/fomo-solana-rh-listeners` | Listener et normalisation d'événements RH/Solana. |
-| `shmidtqq65/loxley` | Dev-sell force-close, quote de sortie et gates de lancement. |
-| `Argona7/stampede` | Rotation sell/buy et convergence. |
-| `andreysuperiorgit/aegis` | Gatebook déterministe et fail-closed. |
-| `mnemox-ai/tradememory-protocol` | Audit trail, recall pondéré par outcome et mémoire. |
-| `marc-shade/world-intel-mcp` | Fetcher, cache stale, circuit breaker et collectors. |
-| `mvanhorn/last30days-skill` | Recherche récente, engagement, brief cité pour `ct-alpha`. |
-| `openpumpio/openpump` | Interface MCP/SDK pump.fun derrière `ExecutionProvider`, après étude. |
-| `openpumpio/openclaw-agent` | RiskParams, circuit breaker, limites de session et trailing. |
-| `zetryn-ai/ai-agent` | Trace, DecisionLog, hybrid audit et backtest. |
-| `thegreatola/memecoins-trading-agent` | Helius wallet tracking, convergence, score, Jupiter et exits. |
-| `lyc0603/copytrading` + `2601.08641.pdf` | Bundle/sniper/bump bot et funding graph anti-manipulation. |
-| `autonsol/sol-mcp` | Risk, momentum, wallet, regime et graduation features. |
-| `dynamolabs/solana-mcp` | Wallet/token/trending/risk/creator/whale read-only. |
-| `manavaga/web3-signals-mcp` | Fusion de signaux, calibration et pondération IC, sans dérivés. |
-| `n8n`/`crypto-trend-hunter` | Corrélation sociale-prix comme feature secondaire de `ct-alpha`. |
-| `Denzz102/memecoin-agent` | Pipeline screener -> RugCheck -> alerte -> journal. |
-| `alexskin/memeoy` | Paper-first, decision log et self-tuning offline. |
-| `Benita2001/SpecterAI` | Holder profiles, smart-wallet DB et zombie-token flag. |
-| `MayurK-cmd/4Meme-Pilot` | Plus tard seulement: BSC 4.meme, rug checks et trade log. |
-| `tow3web3/agentinu` | Architecture Solana simple; exclure profit sharing. |
-| `ChipaDevTeam/GmGnAPI` | Pattern wrapper seulement si un port TS manque; pas le wrapper Python. |
-| `BikeTysonDegen/gmgn-terminal-bot` | UX terminal et paper/copy flows, avec nos guards. |
-| `zostaff/ai-quant-researcher` | Validation de stratégies et rejet d'idées en research offline. |
-| `zostaff/agent-arena` | Paper/chain arena et comparaison de stratégies. |
-| `TauricResearch/TradingAgents` | Débat borné analyste/risque, pas swarm massif ni exécution. |
-| `The-Swarm-Corporation/AutoHedge` | Patterns hedging/portfolio seulement si compatibles spot meme; pas perps. |
-| `HKUDS/Vibe-Trading` | Recherche et interfaces agent, pas sa promesse de trading automatique. |
-| `pgen0x/azimuth` | Patterns de trading agent et outils, après audit code. |
-| `andreysuperiorgit/aegis` | Repris ici également comme contract de sécurité prioritaire. |
-| `akanz/onchain-trading-bot` | Séparation data/strategy/execution. |
-| `mocasus/trade-agent` | Structure d'agent trading, pas dépendance live. |
-| `ygwyg/MAHORAGA` | Boucle d'analyse autonome, avec LLM sans signature. |
-| `51bitquant/ai-hedge-fund-crypto` | Decomposition analyste/risque, filtrée pour spot meme. |
-| `Tomortec/CryptoTradingAgents` | Patterns d'agents crypto et backtest, pas code exécuté directement. |
-| `ryan-yuuu/crypto-trading-arena` | Arena paper et comparaison de résultats. |
-| `LLMQuant/awesome-trading-agents` | Index de recherche seulement; ses projets se décident individuellement. |
-| `mnemox-ai/tradememory-protocol` | Mémoire et attribution; aucune auto-modification live. |
-| `Agent-Reach` | Collecte de sources publiques contrôlée pour `ct-alpha`. |
-| `world-intel-mcp` | Ingestion robuste, cache et stale policy. |
-| `openpumpio/openclaw-agent` | Risk contract avant tout code de trading. |
+### Study
 
-### Reference: étude, comparaison, pas de dépendance
+Sources à lire, comparer ou prototyper avant décision. Aucune dépendance directe pour l'instant.
 
-| Source | Pourquoi elle reste Reference |
-|---|---|
-| GMGN blog Robinhood | Contexte produit et narratif, pas code. |
-| `nhovongoc0-max/meme-radar` | AGPL et scanner local; idées UX seulement. |
-| `vybenetwork/solana-top-traders-api`, `solana-trader-pnl-api` | API patterns utiles, licence/ownership à vérifier. |
-| `zostaff/agent-arena` | Paper arena, trop général pour le runtime. |
-| `FinceptTerminal`, `OpenBB`, `Hummingbot`, `cryptofeed`, `pybroker`, `Lumibot` | Excellents patterns data/terminal/backtest, mais surface trop large. |
-| `BlockRunAI/awesome-finance-mcp`, `LLMQuant/awesome-trading-agents`, `awesome-memecoin-trading` | Catalogues; aucune installation automatique. |
-| `DeepEar`, `QuantGPT`, `pwb-alphaevolve`, `ai-quant-researcher` | Research/quant général, pas source de signaux live sans validation. |
-| `LLMQuant/data-mcp`, `financial-datasets/mcp-server`, `FinanceMCP`, `mcp-aktools`, `mcp_massive` | Data finance non spécifique aux quatre chaînes prioritaires. |
-| `kraken-cli`, `okx/agent-trade-kit`, `tradingview-mcp`, `tradingcodex`, `claude-trading-skills`, `Awesome-finance-skills` | CEX/equity/indicators ou skills génériques; inspiration offline. |
-| `okx/onchainos-skills`, `okx/agent-skills` | Contrats intéressants mais dépendance et surface non nécessaires au noyau. |
-| Bitquery, Bitquery IDE, Birdeye, Defined, DexScreener, GeckoTerminal, CoinGecko, CoinMarketCap | Cross-check et fallback; pas tous comme feeds simultanés primaires. |
-| Helius, Triton, Shyft, QuickNode, Alchemy, Chainstack, Goldsky, The Graph, NodeReal, dRPC, Infura | Providers de secours par chaîne; sélectionner selon SLO et coût. |
-| `mcp.bitquery.io`, DEXrabbit, Hive Intelligence, Heurist Mesh | Surfaces MCP/data à auditer; éviter la dépendance multi-outils géante. |
-| `solana-agent-kit`, `SolMCP`, `solana-mcp`, `tony-42069/solana-mcp` | Toolkits utiles mais overlap avec adapters internes. |
-| `kukapay/jupiter-mcp`, `pumpfun-wallets-mcp`, `rug-check-mcp`, `honeypot-detector-mcp`, `whale-tracker-mcp`, `crypto-sentiment-mcp`, `crypto-indicators-mcp`, `dexscreener-trending-mcp` | Wrappers MCP; préférer APIs directes pour latence, logs et erreurs. |
-| `base-mcp`, `pancakeswap-poolspy`, `evm-mcp-server`, `etherscan-mcp`, `blockscout-mcp` | Futur Base/BSC ou inspection, pas cœur P0. |
-| `2501.00826v3.pdf` | Architecture multi-agent portefeuille; adapter, ne pas copier. |
-| `2609.10246.pdf` | Threat model pump.fun/market factories; heuristiques à vérifier empiriquement. |
-| `2609.05663.pdf` | Preuve que operating layer et contrôles comptent plus que prompt. |
-| ETHGlobal Meme Sentinels, AgentStrategy, DegenAgent, crypto-agent-memecoin-prototype | Hackathon prototypes; séparation Scout/Risk/Alert intéressante, production non prouvée. |
-| `PritamP20/HackMoney` | Lien GitHub mort; showcase conservé comme source de design. |
-| `AgriciDaniel/claude-obsidian` | Mémoire/notes utiles, pas trading runtime. |
-| `OpenPump` marketplace, `ethglobal.com` showcases, services web de token discovery | Sources d'interface et de recherche; aucune garantie de disponibilité ou de licence. |
+- `LLMQuant/awesome-trading-agents`, `BlockRunAI/awesome-finance-mcp`, `buddies2705/awesome-memecoin-trading`, `RKiding/Awesome-finance-skills`, `okx/onchainos-skills`, `okx/agent-skills`, `dbotx/dbot-mcp-servers`: catalogues, skills et contrats MCP à explorer.
+- `FinceptTerminal`, `OpenBB`, `hummingbot`, `bmoscon/cryptofeed`, `edtechre/pybroker`, `Lumiwealth/lumibot`, `mcp-aktools`, `mcp_massive`, `LLMQuant/data-mcp`, `financial-datasets/mcp-server`, `FinanceMCP`, `6551Team/opennews-mcp`, `opennews-mcp`: data/backtest/terminal génériques, pas runtime P0.
+- `vybenetwork/solana-top-holders-api`, `solana-top-traders-api`, `solana-trader-pnl-api`, `chasepal/gmgn-wallet-holdings`, `nirholas/pump-fun-workers`, `nirholas/pump-fun-sdk`, `nirholas/crypto-vision`, `nirholas/memescope-monday-directory`, `nirholas/robinhood-chain-mcp`, `ChipaDevTeam/GmGnAPI`, `BikeTysonDegen/gmgn-terminal-bot`, `tradermonty/claude-trading-skills`, `monarchjuno/tradingcodex`, `atilaahmettaner/tradingview-mcp`, `okx/agent-trade-kit`, `kraken-cli`, `mcp.crypto.com`, `aave/skills`, `base-mcp`, `pancakeswap-poolspy`, `evm-mcp-server`, `etherscan-mcp`, `blockscout`, `thetateman/Trading-API`, `docs.moralis.com/`, `docs.mobula.io/guides/gmgn-apis`, `docs.dune.com/api-reference/agents/mcp`, `mcpmarket.com/server/openpump`: providers, wrappers et SDK à auditer selon coût, couverture et licence.
+- `arxiv.org/html/2501.00826v3`, PDFs `2609.10246` et `2609.05663`, ETHGlobal showcases `meme-sentinels`, `agentstrategy`, `degenagent`, `ennriqe/crypto-agent-memecoin-prototype`, `alexskin/memeoy`: papers et prototypes hackathon pour design et threat model, pas code live.
+- `HKUSTDial/DeepEar`, `oficcejo/alpha-arena-okx`, `paperswithbacktest/pwb-alphaevolve`, `Miasyster/QuantGPT`, `dragon1086/prism-insight`, `flash131307/multi-agent-investment`, `liangdabiao/autogen-financial-analysis`, `ValueCell-ai/valuecell`, `AI4Finance-Foundation/FinRobot`, `brokermr810/QuantDinger`, `OpenByteInc/QuantDinger`, `ZhuLinsen/daily_stock_analysis`, `nautilus_trader`, `fastquant`, `holdout-labs/lookahead-free`, `555cute/r20-quantum-trader`, `0xBennie/binance-smart-money-oi-monitor`: quant/multi-agent/CEX research, à garder en Study sauf pattern isolé.
+- `sevenlabs-hq/carbon`, `subsquid/squid-sdk`, `holaplex/indexer`, `uxuycom/indexer`, `paradigmxyz/cryo`, `chainbase-labs/manuscript-core`, `messari/subgraphs`, `enviodev/hyperindex`, `Shradhesh71/YellowStone-gRPC`: indexeurs, ETL et data lakes pour historique/backtest, pas hot path.
+- `solo-agent/solo`, `AgriciDaniel/claude-obsidian`, `web3-signals-mcp`, `world-intel-mcp`, `last30days-skill`, `Agent-Reach`, `memeoy`, `Maverick`, `docs.fereai.xyz/`, `AnoMeme`, `memenet`, `solana-meme-tool`, `Trading-platform-frontend`, `MiroFish-Offline`, `CROWBRAIN`, `fletch`, `million`, `maverick-backend.onrender.com/api`, `santiment` pages, `debank.com/ranking/dex`, `dex.watch`, `etherscan.io/dextracker`, `dexindex.io`, `liquidity.vision`, `orderflow.art`, `theblockcrypto.com/data/open-finance/dex-non-custodial`, `graphs.santiment.net/dex_trades`, `predictions.exchange/dex`: références UX, données et simulation, pas dépendances runtime.
 
-### Skip: ne pas brancher maintenant
+### Skip
 
-| Source/famille | Motif |
-|---|---|
-| `ChipaDevTeam/GmGnAPI` comme dépendance | Wrapper Python redondant pour TypeScript. |
-| `chasepal/gmgn-wallet-holdings` | Userscript/UI, pas moteur. |
-| `EVM MCP`, ENS, validators, DAO CLI, forum summarizer | Hors besoin memecoin prioritaire. |
-| News/finance MCP multiples en doublon | Trop de bruit et de maintenance; un pipeline CT Alpha suffit. |
-| CEX announcement/orderbook/funding/liquidation MCPs | Pas de CEX/perps dans le scope. |
-| CoinCap/CoinStats/ETF/stocks/funds/projects MCPs | Pas de signal nécessaire pour spot meme. |
-| OpenSea/Magic Eden/NFT analytics | NFT explicitement retiré. |
-| DefiLlama, Aave, Euler, vaults, yields, Arcadia | LP/Yield/DeFi explicitement retirés. |
-| Lightning, payments, x402, multisend | Pas de fonction trading demandée. |
-| Bridges, Wormhole, deBridge, Stargate | Bridges hors périmètre; augmentent le risque opérationnel. |
+Hors scope, fragmentaire, risqué, inutile ou en doublon du stack existant.
 
-### Hard No: interdit dans Memeclaw
+- `pamgarcia1993/robinhood-lp-bot`, `nirholas/scrape-smart-wallets`, `sirenconemd/robinhood-trading-toolkit`, `mortdeus/solana-copy-sniper-mev-trading-bot`, `w3laba/DexScreener-Trending`, `vincentkoc/dexscraper`, `nirholas/memescope-monday-directory`, `oratis/influencex`, `nomics` (`p.nomics.com`), `ccxt`, `trustwallet/blockatlas`, `developers.shrimpy.io`, `wealthfolio/wealthfolio`, `gunbot-quant`, `0xBennie/binance-smart-money-oi-monitor`, `a-guard/malicious-validators`, `robinhood-cli`, `ChainPlusTrader`, `jamsturg/crypto-whale-tracker`, `tradingcodex`, `okx/agent-trade-kit`, `okx/onchainos-skills`, `kraken-cli`, `mcp.crypto.com`, `docs.moralis.com/`, `api.coinpaprika.com`, `docs.coincap.io/`, `coingecko.com/learn/best-free-crypto-api`, `p.nomics.com`, `TheGigaQuant/frostybot-js`, `Krypto-trading-bot`, `OrderBooks`, `financial-indexes-correlation`, `financial-dataset-generator`, `undervalued-crypto-finder`, `lookahead-free`, `liquidity.vision`, `orderflow.art`, `predictions.exchange/dex`, `dexindex.io`, `theblockcrypto.com/data/open-finance/dex-non-custodial`: CEX, equity, perps, LP, NFT, prediction, scraping fragile, bundlers, volume bots, MEV sketchy, dead sites ou génériques.
 
-| Catégorie | Décision |
-|---|---|
-| LP, yield, vaults, NFT, Polymarket/prediction, DAO, perps, CEX derivatives, equities/ETF | Retirer du produit, registry, prompts, routes et tests. |
-| Scraping browser/cookies et scraping de smart wallets | Fragile, ToS/rate-limit, non déterministe. |
-| Code GPL/AGPL ou dépôt sans licence comme dépendance | Pas d'intégration sans revue juridique explicite; patterns seulement. |
-| `nirholas/robinhood-chain-mcp` comme code embarqué | NOASSERTION/restrictions: Reference/Study uniquement. |
-| LLM avec accès signer, private key, broadcast ou bypass gate | Violation d'architecture; impossible en production. |
-| Swarm LLM massif et votes non auditables | Latence, coût, corrélation et absence de responsabilité. |
-| Un seul RPC, MCP ou API comme vérité unique | Tout provider peut être stale ou indisponible. |
+### Couverture exhaustive (full URLs)
+
+Les URLs complètes de la liste dédupliquée sont mappées ici pour éviter toute ambiguïté entre les raccourcis ci-dessus.
+
+- `Adopt`: https://docs.gmgn.ai/index/gmgn-agent-api | https://docs.gmgn.ai/index/gmgn-callout-openapi | https://docs.codex.io/networks | https://mcp.bitquery.io/ | https://api.dexpaprika.com/ | https://www.geckoterminal.com/ | https://birdeye.so/ | https://github.com/rckprtr/pumpdotfun-sdk | https://github.com/jito-labs/jito-ts
+- `Adapt`: https://github.com/cvxv666/fomo-robinhood-radar | https://github.com/itsnex1s/fomopulse-robinhood-chain-tape | https://github.com/chainstacklabs/fomo-solana-rh-listeners | https://github.com/lunarresearcher/copy | https://github.com/slightlyuseless/pons-sniper | https://github.com/chainstacklabs/pumpfun-bonkfun-bot | https://github.com/gustaffsonKotte/qlo | https://github.com/shmidtqq65/loxley | https://github.com/Argona7/stampede | https://github.com/0xjeffro/tx-parser | https://github.com/rimtoln/COPUMP | https://github.com/lyc0603/copytrading | https://github.com/kocer6/MEERKAT | https://github.com/semkazz1/FlySwarm | https://github.com/0xuezhang985/wallet-convergence-alert | https://github.com/andreysuperiorgit/aegis | https://github.com/mnemox-ai/tradememory-protocol | https://github.com/GMGNAI/gmgn-skills | https://gmgnai.github.io/skillmarket-demos/aitrader | https://gmgnai.github.io/skillmarket-demos/memex | https://github.com/GMGNAI/skillmarket-demos/tree/main/aitrader | https://github.com/GMGNAI/skillmarket-demos/tree/main/memex | https://github.com/0xmfox/rabiq | https://github.com/h100envy/nerve | https://github.com/yllvar/gmgn-TrendingAnalyzer | https://github.com/LW-ARTS/trenchkit | https://github.com/crownobyl/trenchkit | https://github.com/openpumpio | https://github.com/zetryn-ai/ai-agent | https://github.com/thegreatola/memecoins-trading-agent | https://github.com/Denzz102/memecoin-agent | https://github.com/Benita2001/SpecterAI | https://github.com/alexskin/memeoy | https://github.com/MayurK-cmd/4Meme-Pilot | https://github.com/tow3web3/agentinu | https://github.com/nhovongoc0-max/meme-radar | https://github.com/stefanoviana/crypto-pump-scanner | https://github.com/PillCrew/claimchain | https://github.com/build23w/fdv.lol | https://github.com/rimtoln/fletch | https://github.com/milesdeutscher/garchmethod | https://github.com/Kelows/million | https://github.com/Im-Madhur-Gupta/maverick | https://github.com/ricoboost/meme-coin-trading-bot | https://github.com/ironclad-protocol/solana-copy-trading-bot | https://github.com/sergafon/solana-copy-trading | https://github.com/dartkomnitibe/solana-meme-tool | https://github.com/soladdev/solana-meme-tool | https://github.com/natebag/TrenchTools | https://github.com/ArgosSystems/Smart-Money-Tracker | https://github.com/jamsturg/crypto-whale-tracker | https://github.com/warp-id/solana-trading-bot | https://github.com/wwwwwwworld/solana-trading-bot-v3 | https://github.com/harutocodes/pumpfun-copytrade | https://github.com/1009682175845693/bsc-fourmeme-bot | https://github.com/dragon1086/prism-insight | https://github.com/Stormeye85/robinhood-token-sniper | https://github.com/Thorsten02041973/robinhood-cli | https://github.com/nansen-ai/nansen-cli | https://github.com/zostaff/ai-quant-researcher | https://github.com/zostaff/agent-arena | https://github.com/TauricResearch/TradingAgents | https://github.com/The-Swarm-Corporation/AutoHedge | https://github.com/HKUDS/Vibe-Trading | https://github.com/pgen0x/azimuth | https://github.com/akanz/onchain-trading-bot | https://github.com/mocasus/trade-agent | https://github.com/ygwyg/MAHORAGA | https://github.com/51bitquant/ai-hedge-fund-crypto | https://github.com/Tomortec/CryptoTradingAgents | https://github.com/ryan-yuuu/crypto-trading-arena | https://github.com/olaxbt/ai-market-maker | https://github.com/ginlix-ai/LangAlpha | https://github.com/FinStep-AI/ContestTrade | https://github.com/EthanAlgoX/LLM-TradeBot | https://github.com/danilobatson/ai-trading-agent-gemini | https://github.com/AmadeusGB/alpha-arena | https://github.com/LuckyOne7777/LLM-Trading-Lab | https://github.com/nautechsystems/nautilus_trader | https://github.com/asavinov/intelligent-trading-bot | https://github.com/freqtrade/freqtrade | https://github.com/JulienPlanchetCoineo/frostybot-js | https://github.com/TheGigaQuant/frostybot-js | https://github.com/ctubio/Krypto-trading-bot | https://github.com/GuntharDeNiro/gunbot-quant | https://github.com/sopersone/CROWBRAIN | https://github.com/rimtoln/fletch | https://github.com/Kelows/million | https://github.com/ejfxgit2025/memenet | https://github.com/AI-PIN/ChainPlusTrader
+- `Study`: https://github.com/Fincept-Corporation/FinceptTerminal | https://github.com/muratmula/ai-robinhood-chain | https://github.com/Drakkar-Software/OctoBot | https://github.com/PillCrew/PillCrew | https://github.com/uerax/all-in-one-bot | https://github.com/redactedmeme/swarm | https://github.com/hummingbot/hummingbot | https://github.com/OpenBB-finance/OpenBB | https://github.com/vybenetwork/solana-top-holders-api | https://github.com/vybenetwork/solana-top-traders-api | https://github.com/vybenetwork/solana-trader-pnl-api | https://github.com/0xwast3/PELLET | https://github.com/moorcheh-ai/memanto | https://github.com/guangxiangdebizi/FinanceMCP | https://github.com/aahl/mcp-aktools | https://github.com/massive-com/mcp_massive | https://github.com/kukapay/jupiter-mcp | https://github.com/kukapay/pumpfun-wallets-mcp | https://github.com/kukapay/rug-check-mcp | https://github.com/kukapay/honeypot-detector-mcp | https://github.com/kukapay/whale-tracker-mcp | https://github.com/kukapay/crypto-sentiment-mcp | https://github.com/kukapay/crypto-indicators-mcp | https://github.com/kukapay/dexscreener-trending-mcp | https://mcpmarket.com/server/openpump | https://arxiv.org/html/2501.00826v3 | https://ethglobal.com/showcase/meme-sentinels-12xqg | https://ethglobal.com/showcase/agentstrategy-hiyug | https://ethglobal.com/showcase/degenagent-zqmdu | https://github.com/immortalhowwl/fly-high | https://github.com/blockscout/blockscout | https://docs.dune.com/api-reference/agents/mcp | https://docs.mobula.io/guides/gmgn-apis | https://docs.moralis.com/ | https://github.com/enzoampil/fastquant | https://github.com/tiagosiebler/OrderBooks | https://dex.watch | https://etherscan.io/dextracker | https://graphs.santiment.net/dex_trades | https://app.santiment.net/assets/list?name=decentralized%20exchanges | https://debank.com/ranking/dex | https://github.com/WebRaizo30/AnoMeme | https://github.com/moazamdotdev/Trading-platform-frontend | https://github.com/ejfxgit2025/memenet | https://github.com/AI-PIN/ChainPlusTrader | https://docs.fereai.xyz/ | https://maverick-backend.onrender.com/api | https://github.com/nikmcfly/MiroFish-Offline
+- `Skip`: https://github.com/alpacahq/alpaca-mcp-server | https://985monitor.xyz/ | https://github.com/krakenfx/kraken-cli | https://mcp.crypto.com | https://github.com/aave/skills | https://github.com/degenfrends/solana-rugchecker | https://github.com/ccxt/ccxt | https://docs.coincap.io/ | https://api.coinpaprika.com/ | https://developers.shrimpy.io/ | https://p.nomics.com/cryptocurrency-bitcoin-api | https://dexindex.io | https://liquidity.vision | https://www.theblockcrypto.com/data/open-finance/dex-non-custodial | https://orderflow.art | http://www.predictions.exchange/dex | https://github.com/Erfaniaa/financial-indexes-correlation | https://github.com/Erfaniaa/financial-dataset-generator | https://github.com/Erfaniaa/undervalued-crypto-finder | https://github.com/wealthfolio/wealthfolio | https://www.coingecko.com/learn/best-free-crypto-api | https://github.com/pamgarcia1993/robinhood-lp-bot | https://github.com/nirholas/scrape-smart-wallets | https://github.com/sirenconemd/robinhood-trading-toolkit | https://github.com/mortdeus/solana-copy-sniper-mev-trading-bot | https://github.com/w3laba/DexScreener-Trending | https://github.com/vincentkoc/dexscraper | https://github.com/oratis/influencex | https://github.com/0xBennie/binance-smart-money-oi-monitor
+
+#### Complétion v3 (URLs restantes)
+
+URLs de la liste dédupliquée qui n'apparaissaient pas encore sous forme complète dans la ligne `Couverture exhaustive` ci-dessus. Classification finale: `Adopt`, `Adapt`, `Study`, `Skip`.
+
+- `Adapt`: https://github.com/autonsol/sol-mcp | https://github.com/dynamolabs/solana-mcp | https://github.com/tony-42069/solana-mcp | https://github.com/kabbersokhi-boop/crypto-trend-hunter | https://github.com/manavaga/web3-signals-mcp | https://github.com/marc-shade/world-intel-mcp | https://github.com/mvanhorn/last30days-skill | https://github.com/Panniantong/Agent-Reach | https://github.com/marksantiago290/KOLscan-leaderboard-scraping | https://github.com/nirholas/kol-quest
+- `Study`: https://github.com/555cute/r20-quantum-trader | https://github.com/6551Team/opennews-mcp | https://github.com/AI4Finance-Foundation/FinRobot | https://github.com/atilaahmettaner/tradingview-mcp | https://github.com/BikeTysonDegen/gmgn-terminal-bot | https://github.com/BlockRunAI/awesome-finance-mcp | https://github.com/bmoscon/cryptofeed | https://github.com/brokermr810/QuantDinger | https://github.com/buddies2705/awesome-memecoin-trading | https://github.com/chainbase-labs/manuscript-core | https://github.com/chasepal/gmgn-wallet-holdings | https://github.com/ChipaDevTeam/GmGnAPI | https://github.com/dbotx/dbot-mcp-servers | https://github.com/edtechre/pybroker | https://github.com/ennriqe/crypto-agent-memecoin-prototype | https://github.com/enviodev/hyperindex | https://github.com/financial-datasets/mcp-server | https://github.com/flash131307/multi-agent-investment | https://github.com/HKUSTDial/DeepEar | https://github.com/holaplex/indexer | https://github.com/holdout-labs/lookahead-free | https://github.com/liangdabiao/autogen-financial-analysis | https://github.com/LLMQuant/awesome-trading-agents | https://github.com/LLMQuant/awesome-trading-agents#agents-atlas-gic | https://github.com/LLMQuant/awesome-trading-agents#mcps-tradingagents-mcpmode | https://github.com/LLMQuant/data-mcp | https://github.com/Lumiwealth/lumibot | https://github.com/messari/subgraphs | https://github.com/Miasyster/QuantGPT | https://github.com/monarchjuno/tradingcodex | https://github.com/nirholas/crypto-vision | https://github.com/nirholas/pump-fun-sdk | https://github.com/nirholas/pump-fun-workers | https://github.com/nirholas/robinhood-chain-mcp | https://github.com/oficcejo/alpha-arena-okx | https://github.com/okx/agent-skills | https://github.com/okx/agent-trade-kit | https://github.com/okx/onchainos-skills | https://github.com/OpenByteInc/QuantDinger | https://github.com/paperswithbacktest/pwb-alphaevolve | https://github.com/paradigmxyz/cryo | https://github.com/RKiding/Awesome-finance-skills | https://github.com/sevenlabs-hq/carbon | https://github.com/Shradhesh71/YellowStone-gRPC | https://github.com/solo-agent/solo | https://github.com/subsquid/squid-sdk | https://github.com/thetateman/Trading-API | https://github.com/tradermonty/claude-trading-skills | https://github.com/uxuycom/indexer | https://github.com/ValueCell-ai/valuecell | https://github.com/ZhuLinsen/daily_stock_analysis | https://coinmarketcap.com/view/memes/ | https://www.coingecko.com/en/categories/meme-token | https://dexrabbit.bitquery.io/
+- `Skip`: https://github.com/a-guard/malicious-validators | https://github.com/nirholas/memescope-monday-directory | https://github.com/trustwallet/blockatlas | https://github.com/...`
 
 ### Migration des scouts
 
@@ -1019,11 +983,11 @@ Le rapport ne promet pas un edge garanti. Il donne la décision d'ingénierie: p
 
 ## Final source audit
 
-Date: 2026-09-16
+Date: 2026-09-17
 
-Ce section est un appendice de mémoire. Il ne supprime aucune section précédente. Les lecteurs qui veulent les tables complètes (`Take`, `Copy`, `Borrow`, `Reference`, `Skip`, `Hard No`, architecture, swarm, migration des scouts) doivent regarder les sections au-dessus.
+Ce section est un appendice de mémoire. Il ne supprime aucune section précédente. Les lecteurs qui veulent la classification complète (`Adopt`, `Adapt`, `Study`, `Skip`, architecture, swarm, migration des scouts) doivent regarder les sections au-dessus.
 
-Méthode: GitHub CLI authentifié (`gh`) avec le PAT local, arcs de clonage shallow, arbres/API quand le réseau l'a permis, nettoyage des clones après lecture, et lecture ciblée au niveau code pour les dépôts à plus forte valeur.
+Méthode: GitHub CLI authentifié (`gh`) avec le PAT local, arcs de clonage shallow, arbres/API quand le réseau l'a permis, nettoyage des clones après lecture, et lecture ciblée au niveau code pour les dépôts à plus forte valeur. Des subagents ont été tentés en parallèle pour cloner les gros lots; plusieurs clones/network ont échoué, donc le thread principal a continué via `gh api` et lectures `README/raw`, puis a nettoyé les clones temporaires.
 
 Niveau de preuve utilisé:
 
@@ -1046,20 +1010,24 @@ Niveau de preuve utilisé:
 
 | Source | Licence | Niveau | Verdict | Mécanismes à retenir |
 |---|---|---|---|---|
-| `chainstacklabs/pumpfun-bonkfun-bot` | Apache-2.0 | `key source files` | Borrow/Take pour Solana | IDL pump.fun, `getMultipleAccounts` batch, `buy_v2` 27 comptes / `sell_v2` 26, ATA base systématique, refresh curve avant sell, priority fee 70e percentile avec hard cap, `curve_refresh_budget` contre stale RPC, `UniversalTrader` avec fenêtre de fraîcheur token et max exit attempts. |
-| `itsnex1s/fomopulse-robinhood-chain-tape` | MIT | `source + guides` | Borrow pour RH/Fomo ingest | WebSocket + catch-up, receipts stables, `StoredFill` reconstruits depuis transfers, `DUST_USD=5`, detection handout 5+ wallets, reboot replay via `RULES` version, `rebuildFills` offline. |
-| `lunarresearcher/copy` | MIT | `source + guides` | Copy limité puis re-implement | Provider Fomo public fallback, normalization leaderboard, RobinhoodChain `RobinhoodProvider` avec topics PONS V1/V2, `walletScore`, `tokenScore`, copy rules avec max market cap/liquidity/tax/conviction/concurrent, `NativeExecutor` webhook queue, paper/terminal séparés. |
-| `shmidtqq65/loxley` | - | `key source files` | Borrow mechanisms | Filets de scoring pons, stratégie paper, relecture précédente. |
-| `cvxv666/fomo-robinhood-radar` | - | `key source files` | Borrow score/filter | resolve et score patterns pour Fomo/RH radar. |
-| `GMGNAI/gmgn-skills` | - | `source + guides` | Take adapté | Due diligence contrat, wallet score, cook skills. |
-| `openpumpio/openpump` | - | `key source files` | Borrow | Snipe/stop-loss/trading patterns MCP, risques et ordre d'execution. |
-| `openpumpio/openclaw-agent` | - | `README only` | Borrow risk contract | Risk contract avant code de trading. |
-| `chainstacklabs/fomo-solana-rh-listeners` | - | `key source files` | Borrow listeners | Onchain listeners pour Solana et RH. |
-| `lyc0603/copytrading` | - | `source + guides` | Borrow | Analyse meme, algorithms anti-bots PDF `2601.08641`, dossier copytrading. |
-| `tony-42069/solana-mcp` / `kukapay/*` | - | `README only` | Reference/Study | Outils MCP Solana/memecoin; préférer APIs directes pour latence. |
-| `manavaga/web3-signals-mcp` | - | `README only` | Study | Fusion multi-dimensions, IC weights, Platt calibration, x402. |
-| `autonsol/sol-mcp` | - | `README only` | Study | Risk scoring Solana et momentum, hosted MCP, no code intégré. |
-| `dynamolabs/solana-mcp` | MIT (readme) | `tree + manifest` | Study | MCP TypeScript pour wallets/tokens/risk, Helius-based. |
+| `chainstacklabs/pumpfun-bonkfun-bot` | Apache-2.0 | `key source files` | Adapt | IDL pump.fun, `getMultipleAccounts` batch, `buy_v2` 27 comptes / `sell_v2` 26, ATA base systématique, refresh curve avant sell, priority fee 70e percentile avec hard cap, `curve_refresh_budget` contre stale RPC, `UniversalTrader` avec fenêtre de fraîcheur token et max exit attempts. |
+| `itsnex1s/fomopulse-robinhood-chain-tape` | MIT | `source + guides` | Adapt | WebSocket + catch-up, receipts stables, `StoredFill` reconstruits depuis transfers, `DUST_USD=5`, detection handout 5+ wallets, reboot replay via `RULES` version, `rebuildFills` offline. |
+| `lunarresearcher/copy` | MIT | `source + guides` | Adapt | Provider Fomo public fallback, normalization leaderboard, RobinhoodChain `RobinhoodProvider` avec topics PONS V1/V2, `walletScore`, `tokenScore`, copy rules avec max market cap/liquidity/tax/conviction/concurrent, `NativeExecutor` webhook queue, paper/terminal séparés. |
+| `shmidtqq65/loxley` | - | `key source files` | Adapt | Filets de scoring pons, stratégie paper, relecture précédente. |
+| `cvxv666/fomo-robinhood-radar` | - | `key source files` | Adapt | resolve et score patterns pour Fomo/RH radar. |
+| `GMGNAI/gmgn-skills` | - | `source + guides` | Adopt/Adapt | Due diligence contrat, wallet score, cook skills. |
+| `openpumpio/openpump` | - | `key source files` | Adapt | Snipe/stop-loss/trading patterns MCP, risques et ordre d'execution. |
+| `openpumpio/openclaw-agent` | - | `README only` | Adapt | Risk contract avant code de trading. |
+| `chainstacklabs/fomo-solana-rh-listeners` | - | `key source files` | Adapt | Onchain listeners pour Solana et RH. |
+| `lyc0603/copytrading` | - | `source + guides` | Adapt | Analyse meme, algorithms anti-bots PDF `2601.08641`, dossier copytrading. |
+| `tony-42069/solana-mcp` / `kukapay/*` | - | `README only` | Study | Outils MCP Solana/memecoin; préférer APIs directes pour latence. |
+| `manavaga/web3-signals-mcp` | - | `README only` | Adapt | Fusion multi-dimensions, IC weights, Platt calibration, x402. |
+| `autonsol/sol-mcp` | - | `README only` | Adapt | Risk scoring Solana et momentum, hosted MCP, no code intégré. |
+| `dynamolabs/solana-mcp` | MIT (readme) | `tree + manifest` | Adapt | MCP TypeScript pour wallets/tokens/risk, Helius-based. |
+| `muratmula/ai-robinhood-chain` | MIT | `README only` | Adapt | OPENCATZ AI pour Robinhood Chain: 264 tests, Discord/Terminal/Telegram command center, `DRY_RUN` execution separation, meme scout GMGN/GoPlus avec seuils `24h volume >= $25k`, `liquidity >= $5k`; scouts LP/NFT/perp hors scope. |
+| `stefanoviana/crypto-pump-scanner` | MIT | `README only` | Adapt | Multi-layer confirmation (volume 5x, prix +3%, 3 bougies vertes, RSI 60-85, buy ratio >65%, min $500K), cascade TP, circuit breaker -$50/day; CEX/perps hors scope. |
+| `PillCrew/PillCrew` | MIT | `README only` | Study | Desktop AI assistant Solana: live coin checks, trending, portfolio, whale follow, radar, position sizing, meme brain; UX à étudier, pas runtime. |
+| `degenfrends/solana-rugchecker` | TypeScript | `README/tree` | Adapt | Rug checker Solana: metadata/top holders/liquidity, `getTokenLargestAccounts`, optional pool file et Helius key; pattern utile pour gatebook, résultats à recouper (faux positifs possibles). |
 
 Clones temporaires supprimés après lecture: `pumpfun-bonkfun-bot`, `fomopulse-robinhood-chain-tape`, `copy`, `zetryn-ai-agent` (clone incomplet, meta README via API), `dynamolabs-solana-mcp` (clone incomplet, meta via API).
 
@@ -1848,3 +1816,10 @@ Verification: full `npm test` passes (412 tests across 59 files), `npm run build
 - Added [tests/tape-ingest-router.test.ts](<C:/Users/CM265/Documents/ChatGPT/New project 2/memeclaw/tests/tape-ingest-router.test.ts:1>) covering first-time persistence, duplicate skip, malformed payload rejection, Fomo profile resolution from maker windows, and wallet-cohort ingestion. Extended [tests/api-server.test.ts](<C:/Users/CM265/Documents/ChatGPT/New project 2/memeclaw/tests/api-server.test.ts:42>) with tape -> fomo resolver integration coverage.
 
 Verification: full `npm test` passes (417 tests across 60 files), `npm run build` passes TypeScript compilation. Fomo tape ingestion now has a single deterministic front door, and the report is up to date with the next implementation chunk before stopping.
+
+### P10 report reclassification pass (2026-09-17)
+
+- Rewrote the master decision register around the final vocabulary: `Adopt`, `Adapt`, `Study`, `Skip`. Old journal sections remain below the register as reading notes, but the register is the operational decision source.
+- Refreshed the roadmap as `Roadmap v3`: P0 foundation, P1 RH/Fomo tape + read-only Solana, P2 canary live, P3 Base/BSC, P4 study backlog.
+- Added `Complétion v3 (URLs restantes)` so every URL from the deduplicated source list appears in the final coverage section; coverage check passes with 237 HTTP URLs extracted and 0 missing.
+- Added code-level README findings for `muratmula/ai-robinhood-chain`, `stefanoviana/crypto-pump-scanner`, `PillCrew/PillCrew`, and `degenfrends/solana-rugchecker`, plus a note that subagent clone/network attempts were limited and the main thread fell back to `gh api` + README reads with temporary clone cleanup.
